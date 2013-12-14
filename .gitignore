@@ -1,3 +1,5 @@
 .*
 *.swp
 *.swa
+.idea
+*.iml
