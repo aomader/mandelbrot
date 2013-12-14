@@ -1,6 +1,6 @@
 package mandelbrot;
 
-import mandelbrot.ui.MainWindow;
+import mandelbrot.ui.Window;
 
 import javax.swing.*;
 
@@ -9,7 +9,7 @@ public class Main {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new MainWindow();
+                new Window();
             }
         });
     }
