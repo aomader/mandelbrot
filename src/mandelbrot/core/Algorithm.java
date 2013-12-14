@@ -1,7 +1,6 @@
 package mandelbrot.core;
 
 public class Algorithm {
-
     /**
      * A simple implementation of the escape time algorithm.
      *
