@@ -1,23 +1,37 @@
 package mandelbrot.ui;
 
-import mandelbrot.core.Algorithm;
+import mandelbrot.core.ForkJoinModel;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.geom.Point2D;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.util.Observable;
+import java.util.Observer;
 
-public class View extends JComponent {
-    /** The coordinate within the Mandelbrot space aligned to the upper left corner, */
-    private Point2D location = new Point2D.Double(-2.5, -1);
+public class View extends JComponent implements Observer {
 
-    /** Mandelbrot units per pixel. */
-    private double scale = 1/200.;
+    // ==== Properties ====
+
+    private ForkJoinModel model;
+
+    // ==== Constructor ====
 
     public View() {
         super();
 
+        model = new ForkJoinModel();
+        model.addObserver(this);
+
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                super.componentResized(e);
+                model.setSize(e.getComponent().getSize());
+            }
+        });
+
+        /*
         addMouseListener(new MouseAdapter() {
             private Point pressed;
 
@@ -34,7 +48,7 @@ public class View extends JComponent {
                     int x = Math.min(pressed.x, e.getX());
                     int y = Math.min(pressed.y, e.getY());
 
-                    location.setLocation(location.getX() + x*scale, location.getY() + y*scale);
+                    location.setLocation(location.getX() + x * scale, location.getY() + y * scale);
 
                     double dx = Math.abs(pressed.x - e.getX());
                     double dy = Math.abs(pressed.y - e.getY());
@@ -44,26 +58,33 @@ public class View extends JComponent {
 
                 repaint();
             }
+
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                super.mouseWheelMoved(e);
+            }
         });
+        */
     }
+
+    // ==== JComponent Overrides ====
 
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        int width = getWidth();
-        int height = getHeight();
+        BufferedImage image = model.getImage();
+        if (image != null) {
+            g.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
+        }
+    }
 
-        for (int x = 0; x < width; ++x) {
-            for (int y = 0; y < height; ++y) {
-                double mx = x * scale + location.getX();
-                double my = y * scale + location.getY();
+    // ==== Observer Overrides ====
 
-                int iter = Algorithm.escapeTime(mx, my, 1000);
-                Color c = new Color(iter % 256, iter % 256, iter % 256);
-                g.setColor(c);
-                g.fillRect(x, y, 1, 1);
-            }
+    @Override
+    public void update(Observable o, Object arg) {
+        if (o == model) {
+            repaint();
         }
     }
 }
