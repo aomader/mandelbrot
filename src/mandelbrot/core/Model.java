@@ -8,16 +8,24 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.util.Observable;
+import java.util.Vector;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
 
 public class Model extends Observable implements ActionListener {
 
+    static private final int WINDOW_SIZE = 20;
+
     // ==== Properties ====
 
-    private final Timer timer = new Timer(1000 / 30, this);
-    private final ForkJoinPool pool = new ForkJoinPool();
+    private final Timer timer = new Timer(1000 / 25, this);
+    private final int cores = Runtime.getRuntime().availableProcessors();
+    private final Vector<Thread> threads = new Vector<Thread>(cores);
+
+    private Point[] points;
+    private int pointIndex;
+    private final Object pointLock = new Object();
 
     private Point2D location = new Point2D.Double(-2.5, -1);
     private double scale = 1/200.;
@@ -25,7 +33,6 @@ public class Model extends Observable implements ActionListener {
     private BufferedImage image;
     private Graphics2D g2d;
     private WritableRaster raster;
-    private ForkJoinTask task;
 
     // ==== Accessors ====
 
@@ -37,8 +44,10 @@ public class Model extends Observable implements ActionListener {
         this.image = new BufferedImage(dimension.width, dimension.height, BufferedImage.TYPE_3BYTE_BGR);
         this.g2d = this.image.createGraphics();
         this.raster = this.image.getRaster();
+
+        shufflePoints();
+
         draw();
-        timer.start();
     }
 
     public synchronized BufferedImage getImage() {
@@ -52,7 +61,16 @@ public class Model extends Observable implements ActionListener {
             setChanged();
             notifyObservers();
 
-            if (task != null && task.isDone()) {
+
+            boolean alive = false;
+            for (Thread thread : threads) {
+                if (thread.isAlive()) {
+                    alive = true;
+                    break;
+                }
+            }
+
+            if (!alive) {
                 timer.stop();
             }
         }
@@ -60,33 +78,73 @@ public class Model extends Observable implements ActionListener {
 
     // ==== Private Helper Methods ====
 
-    private void draw() {
-        if (task != null && !task.isDone()) {
-            task.cancel(true);
+    private void shufflePoints() {
+        int width = (int)Math.ceil((double)image.getWidth() / WINDOW_SIZE);
+        int height = (int)Math.ceil((double)image.getHeight() / WINDOW_SIZE);
+
+        Point[] points = new Point[width * height];
+        for (int i = 0; i < points.length; ++i) {
+            points[i] = new Point(i % width, i / width);
         }
-        task = pool.submit(new Calculation(0, this.image.getWidth() - 1));
+
+        for (int i = 0; i < points.length; ++i) {
+            int j = (int)(Math.random() * points.length);
+            Point t = points[i];
+            points[i] = points[j];
+            points[j] = t;
+        }
+
+        this.points = points;
+        this.pointIndex = 0;
+    }
+
+    private void draw() {
+        for (Thread thread : threads) {
+            if (thread.isAlive()) {
+                thread.interrupt();
+            }
+        }
+
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {}
+        }
+
+        threads.removeAllElements();
+        pointIndex = 0;
+
+        for (int i = 0; i < cores; ++i) {
+            Thread thread = new Thread(new Calculation());
+            thread.start();
+            threads.add(thread);
+        }
+
         timer.start();
     }
 
     // ==== Calculation Task ====
 
-    private class Calculation extends RecursiveAction {
-        private int left, right;
-
-        public Calculation(int left, int right) {
-            this.left = left;
-            this.right = right;
-        }
-
+    private class Calculation implements Runnable {
         @Override
-        protected void compute() {
-            if (right - left > 20) {
-                int middle = left + (right - left)/2;
-                invokeAll(new Calculation(left, middle - 1),
-                          new Calculation(middle, right));
-            } else {
-                for (int x = left; x <= right; ++x) {
-                    for (int y = 0; y < image.getHeight(); ++y) {
+        public void run() {
+            final int width = image.getWidth();
+            final int height = image.getHeight();
+
+            while (!Thread.currentThread().isInterrupted()) {
+                int index;
+
+                synchronized (pointLock) {
+                    if (pointIndex >= points.length) {
+                        break;
+                    }
+                    index = pointIndex++;
+                }
+
+                final Point p = points[index];
+
+                for (int x = p.x * WINDOW_SIZE, e = x + WINDOW_SIZE; x < e && x < width; ++x) {
+                    for (int y = p.y * WINDOW_SIZE, f = y + WINDOW_SIZE; y < f && y < height; ++y) {
                         double mx = x * scale + location.getX();
                         double my = y * scale + location.getY();
 

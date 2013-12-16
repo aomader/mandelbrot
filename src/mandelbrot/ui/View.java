@@ -1,6 +1,7 @@
 package mandelbrot.ui;
 
 import mandelbrot.core.ForkJoinModel;
+import mandelbrot.core.Model;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,14 +14,14 @@ public class View extends JComponent implements Observer {
 
     // ==== Properties ====
 
-    private ForkJoinModel model;
+    private Model model;
 
     // ==== Constructor ====
 
     public View() {
         super();
 
-        model = new ForkJoinModel();
+        model = new Model();
         model.addObserver(this);
 
         addComponentListener(new ComponentAdapter() {

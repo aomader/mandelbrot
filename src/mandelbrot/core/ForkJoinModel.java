@@ -80,7 +80,7 @@ public class ForkJoinModel extends Observable implements ActionListener {
 
         @Override
         protected void compute() {
-            if (right - left > 200) {
+            if (right - left > 20) {
                 int middle = left + (right - left)/2;
                 invokeAll(new Calculation(left, middle - 1),
                           new Calculation(middle, right));
