@@ -29,6 +29,13 @@ public class View extends JComponent implements Observer {
                 super.componentResized(e);
                 model.setSize(e.getComponent().getSize());
             }
+
+            @Override
+            public void componentShown(ComponentEvent e) {
+                super.componentShown(e);
+                model.setSize(getSize());
+                model.fit();
+            }
         });
 
         addMouseListener(new MouseAdapter() {
@@ -58,9 +65,7 @@ public class View extends JComponent implements Observer {
         super.paintComponent(g);
 
         BufferedImage image = model.getImage();
-        if (image != null) {
-            g.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
-        }
+        g.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
     }
 
     // ==== Observer Implementation ====

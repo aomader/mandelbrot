@@ -13,15 +13,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Model extends Observable implements ActionListener {
 
-    static private final int FPS = 25;
-
     // ==== Properties ====
 
     private final GraphicsConfiguration config =
         GraphicsEnvironment.getLocalGraphicsEnvironment().
             getDefaultScreenDevice().getDefaultConfiguration();
 
-    private final Timer timer = new Timer(1000 / FPS, this);
+    private final Timer timer = new Timer(1000, this);
     private final int cores = Runtime.getRuntime().availableProcessors();
     private final Vector<Thread> threads = new Vector<Thread>(cores);
 
@@ -30,9 +28,19 @@ public class Model extends Observable implements ActionListener {
 
     private Point2D location = new Point2D.Double(-2.5, -1);
     private double scale = 1/200.;
+    private int fps = 25;
+    private int maxIter = 1000;
 
     private BufferedImage image;
     private WritableRaster raster;
+
+    // ==== Constructor ====
+
+    public Model() {
+        super();
+        setSize(new Dimension(1, 1));
+        setFps(25);
+    }
 
     // ==== Accessors ====
 
@@ -65,6 +73,26 @@ public class Model extends Observable implements ActionListener {
 
         updateIndexes();
 
+        startDrawing();
+    }
+
+    public synchronized int getFps() {
+        return fps;
+    }
+
+    public synchronized void setFps(int fps) {
+        this.fps = fps;
+        timer.setDelay(1000 / fps);
+        timer.setInitialDelay(1000 / fps);
+    }
+
+    public synchronized int getMaximumIterations() {
+        return maxIter;
+    }
+
+    public synchronized void setMaximumIterations(int maxIter) {
+        stopDrawing();
+        this.maxIter = maxIter;
         startDrawing();
     }
 
@@ -124,6 +152,19 @@ public class Model extends Observable implements ActionListener {
                                       image.getHeight(), null);
 
         startDrawing();
+    }
+
+    /**
+     * Update location and scale such that the whole Mandelbrot space
+     * is shown best.
+     */
+    public synchronized void fit() {
+        stopDrawing();
+
+        location = new Point2D.Double(-2.5, -1);
+        scale = 1/200.;
+
+        show(new Rectangle(0, 0, (int)(3.5/scale), (int)(2./scale)));
     }
 
     // ==== ActionListener Implementation ====
@@ -229,7 +270,7 @@ public class Model extends Observable implements ActionListener {
                 final double my = (xy / width) * scale + location.getY();
 
                 // the actual time consuming computation
-                final int iter = Algorithm.escapeTime(mx, my, 255);
+                final int iter = Algorithm.escapeTime(mx, my, 4, maxIter);
 
                 /* TODO: The arrangement, e.g. RGB, BGR, etc. is defined by
                          the image, we have to look that up. */

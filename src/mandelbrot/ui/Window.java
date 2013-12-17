@@ -8,6 +8,8 @@ import java.awt.*;
 public class Window extends JFrame {
 
     public Window() {
+        super();
+
         setTitle("Mandelbrot");
         setSize(200, 200);
         setVisible(true);
@@ -16,9 +18,10 @@ public class Window extends JFrame {
         Model model = new Model();
 
         JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new Controls(model), BorderLayout.WEST);
         panel.add(new View(model), BorderLayout.CENTER);
-        panel.add(new Controls(model), BorderLayout.SOUTH);
 
         setContentPane(panel);
+        pack();
     }
 }
