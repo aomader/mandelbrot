@@ -1,6 +1,5 @@
 package mandelbrot.ui;
 
-import mandelbrot.core.ForkJoinModel;
 import mandelbrot.core.Model;
 
 import javax.swing.*;
@@ -14,14 +13,14 @@ public class View extends JComponent implements Observer {
 
     // ==== Properties ====
 
-    private Model model;
+    final private Model model;
 
     // ==== Constructor ====
 
-    public View() {
+    public View(final Model aModel) {
         super();
 
-        model = new Model();
+        model = aModel;
         model.addObserver(this);
 
         addComponentListener(new ComponentAdapter() {
@@ -32,40 +31,24 @@ public class View extends JComponent implements Observer {
             }
         });
 
-        /*
         addMouseListener(new MouseAdapter() {
             private Point pressed;
 
             @Override
             public void mousePressed(MouseEvent e) {
+                super.mousePressed(e);
                 pressed = e.getPoint();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                double distance = Math.sqrt(Math.pow(pressed.getX() - e.getX(), 2) + Math.pow(pressed.getY() - e.getY(), 2));
-
-                if (distance > 50.f) {
-                    int x = Math.min(pressed.x, e.getX());
-                    int y = Math.min(pressed.y, e.getY());
-
-                    location.setLocation(location.getX() + x * scale, location.getY() + y * scale);
-
-                    double dx = Math.abs(pressed.x - e.getX());
-                    double dy = Math.abs(pressed.y - e.getY());
-
-                    scale *= Math.max(dx / getWidth(), dy / getWidth());
-                }
-
-                repaint();
-            }
-
-            @Override
-            public void mouseWheelMoved(MouseWheelEvent e) {
-                super.mouseWheelMoved(e);
+                super.mouseReleased(e);
+                model.show(new Rectangle(Math.min(pressed.x, e.getX()),
+                                         Math.min(pressed.y, e.getY()),
+                                         Math.abs(pressed.x - e.getX()),
+                                         Math.abs(pressed.y - e.getY())));
             }
         });
-        */
     }
 
     // ==== JComponent Overrides ====
@@ -80,7 +63,7 @@ public class View extends JComponent implements Observer {
         }
     }
 
-    // ==== Observer Overrides ====
+    // ==== Observer Implementation ====
 
     @Override
     public void update(Observable o, Object arg) {

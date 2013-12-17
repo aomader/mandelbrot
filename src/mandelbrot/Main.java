@@ -5,7 +5,14 @@ import mandelbrot.ui.Window;
 import javax.swing.*;
 
 public class Main {
+
     public static void main(String[] args) {
+        // try to use system specific look and feel
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {}
+
+        // create the window within the UI-thread
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -13,4 +20,5 @@ public class Main {
             }
         });
     }
+
 }

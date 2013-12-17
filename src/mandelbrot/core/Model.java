@@ -9,49 +9,121 @@ import java.awt.image.BufferedImage;
 import java.awt.image.WritableRaster;
 import java.util.Observable;
 import java.util.Vector;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ForkJoinTask;
-import java.util.concurrent.RecursiveAction;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Model extends Observable implements ActionListener {
 
-    static private final int WINDOW_SIZE = 20;
+    static private final int FPS = 25;
 
     // ==== Properties ====
 
-    private final Timer timer = new Timer(1000 / 25, this);
+    private final GraphicsConfiguration config =
+        GraphicsEnvironment.getLocalGraphicsEnvironment().
+            getDefaultScreenDevice().getDefaultConfiguration();
+
+    private final Timer timer = new Timer(1000 / FPS, this);
     private final int cores = Runtime.getRuntime().availableProcessors();
     private final Vector<Thread> threads = new Vector<Thread>(cores);
 
-    private Point[] points;
-    private int pointIndex;
-    private final Object pointLock = new Object();
+    private int[] indexes;
+    private AtomicInteger index = new AtomicInteger();
 
     private Point2D location = new Point2D.Double(-2.5, -1);
     private double scale = 1/200.;
 
     private BufferedImage image;
-    private Graphics2D g2d;
     private WritableRaster raster;
 
     // ==== Accessors ====
 
+    /**
+     * Get the size of the created image.
+     * @return The size of the image.
+     */
     public synchronized Dimension getSize() {
         return new Dimension(this.image.getWidth(), this.image.getHeight());
     }
 
-    public synchronized void setSize(Dimension dimension) {
-        this.image = new BufferedImage(dimension.width, dimension.height, BufferedImage.TYPE_3BYTE_BGR);
-        this.g2d = this.image.createGraphics();
-        this.raster = this.image.getRaster();
+    /**
+     * Set's the size of the rendered image, triggers a redraw if necessary.
+     * @param size The new size of the image.
+     */
+    public synchronized void setSize(Dimension size) {
+        stopDrawing();
 
-        shufflePoints();
+        BufferedImage newImage = config.createCompatibleImage(size.width,
+            size.height, Transparency.OPAQUE);
 
-        draw();
+        // copy over already rendered parts
+        if (image != null) {
+            newImage.getGraphics().drawImage(image, 0, 0, image.getWidth(),
+                                             image.getHeight(), null);
+        }
+
+        image = newImage;
+        raster = image.getRaster();
+
+        updateIndexes();
+
+        startDrawing();
     }
 
+    /**
+     * Get the image the algorithm renders to. It might show not completely
+     * rendered versions.
+     * @return The rendered image.
+     */
     public synchronized BufferedImage getImage() {
         return image;
+    }
+
+    /**
+     * Get the progress of the last rendering attempt in the range [0.f, 1.f].
+     * @return The progress of the last rendering attempt.
+     */
+    public synchronized float getProgress() {
+        return Math.min(1.f, (float)index.get() / indexes.length);
+    }
+
+    // ==== Public Methods
+
+    /**
+     * Updates the location and the scale such that the rectangle is shown
+     * best.
+     * @param rectangle The region to show in image coordinates.
+     */
+    public synchronized void show(Rectangle rectangle) {
+        stopDrawing();
+
+        final double ratio = (double)image.getWidth() / image.getHeight();
+
+        // ensure that everything within rect is shown
+        if ((double)rectangle.width / rectangle.height > ratio) {
+            final double delta = (rectangle.width / ratio - rectangle.height);
+            rectangle.y -= delta / 2.;
+            rectangle.height += delta;
+        } else {
+            final double delta = (rectangle.height * ratio - rectangle.width);
+            rectangle.x -= delta / 2.;
+            rectangle.width += delta;
+        }
+
+        // update Mandelbrot coordinates
+        location.setLocation(location.getX() + rectangle.x * scale,
+                             location.getY() + rectangle.y * scale);
+        scale = rectangle.width * scale / image.getWidth();
+
+        // scale image region to provide a fast yet not sharp preview
+        BufferedImage s = config.createCompatibleImage(rectangle.width,
+                                                       rectangle.height);
+        s.getGraphics().drawImage(image, 0, 0, rectangle.width,
+                                  rectangle.height, rectangle.x, rectangle.y,
+                                  rectangle.x + rectangle.width,
+                                  rectangle.y + rectangle.height, null);
+        image.getGraphics().drawImage(s, 0, 0, image.getWidth(),
+                                      image.getHeight(), null);
+
+        startDrawing();
     }
 
     // ==== ActionListener Implementation ====
@@ -61,61 +133,65 @@ public class Model extends Observable implements ActionListener {
             setChanged();
             notifyObservers();
 
-
-            boolean alive = false;
             for (Thread thread : threads) {
                 if (thread.isAlive()) {
-                    alive = true;
-                    break;
+                    return;
                 }
             }
 
-            if (!alive) {
-                timer.stop();
-            }
+            // stop the timer if all threads are finished
+            timer.stop();
         }
     }
 
     // ==== Private Helper Methods ====
 
-    private void shufflePoints() {
-        int width = (int)Math.ceil((double)image.getWidth() / WINDOW_SIZE);
-        int height = (int)Math.ceil((double)image.getHeight() / WINDOW_SIZE);
+    private void updateIndexes() {
+        final int total = image.getWidth() * image.getHeight();
 
-        Point[] points = new Point[width * height];
-        for (int i = 0; i < points.length; ++i) {
-            points[i] = new Point(i % width, i / width);
+        // create increasing pixel indexes
+        indexes = new int[total];
+        for (int i = 0; i < total; ++i)
+            indexes[i] = i;
+
+        // apply Knuth shuffle for random permutation
+        for (int i = 0; i < total; ++i) {
+            int j = (int)(Math.random() * total);
+
+            int t = indexes[i];
+            indexes[i] = indexes[j];
+            indexes[j] = t;
         }
 
-        for (int i = 0; i < points.length; ++i) {
-            int j = (int)(Math.random() * points.length);
-            Point t = points[i];
-            points[i] = points[j];
-            points[j] = t;
-        }
-
-        this.points = points;
-        this.pointIndex = 0;
+        index.set(0);
     }
 
-    private void draw() {
+    private void stopDrawing() {
+        // tell all threads to stop
         for (Thread thread : threads) {
-            if (thread.isAlive()) {
-                thread.interrupt();
+            thread.interrupt();
+        }
+
+        // wait for all threads to finish
+        for (Thread thread : threads) {
+            while (thread.isAlive()) {
+                try {
+                    thread.join();
+                } catch (InterruptedException e) {}
             }
         }
 
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {}
-        }
-
         threads.removeAllElements();
-        pointIndex = 0;
 
+        timer.stop();
+    }
+
+    private void startDrawing() {
+        index.set(0);
+
+        // spawn new threads to perform the calculations
         for (int i = 0; i < cores; ++i) {
-            Thread thread = new Thread(new Calculation());
+            Thread thread = new Calculation();
             thread.start();
             threads.add(thread);
         }
@@ -125,37 +201,44 @@ public class Model extends Observable implements ActionListener {
 
     // ==== Calculation Task ====
 
-    private class Calculation implements Runnable {
+    private class Calculation extends Thread {
+        private int[] pixel = new int[3];
+
         @Override
         public void run() {
             final int width = image.getWidth();
-            final int height = image.getHeight();
+            final int total = indexes.length;
 
+            // consume pixels until exhausted or thread is interrupted
             while (!Thread.currentThread().isInterrupted()) {
-                int index;
+                // get next pixel candidate
+                final int idx = index.getAndIncrement();
 
-                synchronized (pointLock) {
-                    if (pointIndex >= points.length) {
-                        break;
-                    }
-                    index = pointIndex++;
+                // stop when all pixels are consumed
+                if (idx >= total) {
+                    break;
                 }
 
-                final Point p = points[index];
+                // 1D to 2D coordinates
+                final int xy = indexes[idx];
+                final int x = xy % width;
+                final int y = xy / width;
 
-                for (int x = p.x * WINDOW_SIZE, e = x + WINDOW_SIZE; x < e && x < width; ++x) {
-                    for (int y = p.y * WINDOW_SIZE, f = y + WINDOW_SIZE; y < f && y < height; ++y) {
-                        double mx = x * scale + location.getX();
-                        double my = y * scale + location.getY();
+                // map coordinates into Mandelbrot space
+                final double mx = (xy % width) * scale + location.getX();
+                final double my = (xy / width) * scale + location.getY();
 
-                        int iter = Algorithm.escapeTime(mx, my, 10000);
-                        int ia[] = new int[3];
-                        ia[0] = iter % 256;
-                        ia[1] = iter % 256;
-                        ia[2] = iter % 256;
-                        raster.setPixel(x, y, ia);
-                    }
-                }
+                // the actual time consuming computation
+                final int iter = Algorithm.escapeTime(mx, my, 255);
+
+                /* TODO: The arrangement, e.g. RGB, BGR, etc. is defined by
+                         the image, we have to look that up. */
+
+                // set the new color of the pixel
+                pixel[0] = (int)((float)iter/255 * 255);
+                pixel[1] = pixel[0];
+                pixel[2] = pixel[0];
+                raster.setPixel(x, y, pixel);
             }
         }
     }
