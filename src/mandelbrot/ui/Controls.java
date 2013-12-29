@@ -8,6 +8,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.text.html.ObjectView;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -109,36 +110,26 @@ public class Controls extends Box implements Observer, ActionListener,
     @Override
     public void actionPerformed(ActionEvent e) {
         final Object source = e.getSource();
+        final Dimension size = model.getSize();
 
         // fit best
         if (source == fitButton) {
             model.fit();
-            return;
         }
-
-        Dimension size = model.getSize();
-        Rectangle rect = new Rectangle(size);
-
-        // zoom in and out
-        if (source == inButton || source == outButton) {
-            double factor = source == inButton ? ZOOM_FACTOR : 1/ZOOM_FACTOR;
-            double w = size.width * factor, h = size.height * factor;
-            rect.setSize((int)Math.round(w), (int)Math.round(h));
-            rect.setLocation((int)Math.round((size.width - w)/2.),
-                (int)Math.round((size.height - h)/2.));
-
+        // zooming and moving
+        else if (source == inButton || source == outButton) {
+            model.scale(size.width / 2, size.height / 2, source == inButton ?
+                ZOOM_FACTOR : 1/ZOOM_FACTOR);
         // moving
-        } else if (e.getSource() == leftButton) {
-            rect.setLocation((int)Math.round(-size.width * MOVE_FACTOR), 0);
-        } else if (e.getSource() == rightButton) {
-            rect.setLocation((int)Math.round(size.width * MOVE_FACTOR), 0);
-        } else if (e.getSource() == upButton) {
-            rect.setLocation(0, (int)Math.round(-size.height * MOVE_FACTOR));
-        } else if (e.getSource() == downButton) {
-            rect.setLocation(0, (int)Math.round(size.height * MOVE_FACTOR));
+        } else if (source == leftButton) {
+            model.translate((int)Math.round(-size.width * MOVE_FACTOR), 0);
+        } else if (source == rightButton) {
+            model.translate((int)Math.round(size.width * MOVE_FACTOR), 0);
+        } else if (source == upButton) {
+            model.translate(0, (int)Math.round(-size.height * MOVE_FACTOR));
+        } else if (source == downButton) {
+            model.translate(0, (int)Math.round(size.height * MOVE_FACTOR));
         }
-
-        model.show(rect);
     }
 
     // ==== ChangeListener Implementation

@@ -68,36 +68,37 @@ public class View extends JComponent implements Observer, ActionListener {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (!panning) {
-                    double d = Math.sqrt(Math.pow(pressed.getX() - e.getX(), 2) +
-                        Math.pow(pressed.getY() - e.getY(), 2));
+                    double d = Math.sqrt(Math.pow(pressed.getX() - e.getX(), 2)
+                        + Math.pow(pressed.getY() - e.getY(), 2));
+
                     if (d >= PAN_THRESHOLD) {
                         panning = true;
                         pressed = e.getPoint();
                         model.setActive(false);
                     }
-                } else {
-                    Rectangle rect = new Rectangle(model.getSize());
-                    rect.setLocation(pressed.x - e.getX(), pressed.y - e.getY());
-                    model.show(rect);
 
-                    pressed = e.getPoint();
+                    return;
                 }
+
+                model.translate(pressed.x - e.getX(), pressed.y - e.getY());
+                pressed = e.getPoint();
             }
 
             // zoom on double click
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 2) {
-                    zoom(e.getPoint(), e.getButton() == MouseEvent.BUTTON1 ?
-                        ZOOM_FACTOR  : 1 / ZOOM_FACTOR);
+                    model.scale(e.getX(), e.getY(),
+                        e.getButton() == MouseEvent.BUTTON1 ? ZOOM_FACTOR :
+                        1 / ZOOM_FACTOR);
                 }
             }
 
             // zoom through mouse wheel movement
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                zoom(e.getPoint(), e.getWheelRotation() < 0 ? ZOOM_FACTOR  :
-                    1 / ZOOM_FACTOR);
+                model.scale(e.getX(), e.getY(), e.getWheelRotation() < 0 ?
+                    ZOOM_FACTOR : 1 / ZOOM_FACTOR);
             }
         };
 
@@ -134,21 +135,6 @@ public class View extends JComponent implements Observer, ActionListener {
         if (e.getSource() == timer) {
             model.setSize(getSize());
         }
-    }
-
-    // ==== Private Helper Methods ====
-
-    private void zoom(Point location, double factor) {
-        final Dimension size = model.getSize();
-
-        final double w = size.width * factor, h = size.height * factor;
-        final int x = (int)Math.round((size.width - w) * location.getX() /
-            size.width);
-        final int y = (int)Math.round((size.height - h) * location.getY() /
-            size.height);
-
-        model.show(new Rectangle(x, y, (int)Math.round(w),
-            (int)Math.round(h)));
     }
 
 }

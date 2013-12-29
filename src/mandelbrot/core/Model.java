@@ -58,7 +58,7 @@ public class Model extends Observable implements ActionListener {
     }
 
     /**
-     * Whether the model shall rerender the image if necessary, e.g. caused
+     * Whether the model shall re-render the image if necessary, e.g. caused
      * by a call to {@code show()}.
      * @return The current active state.
      */
@@ -237,6 +237,31 @@ public class Model extends Observable implements ActionListener {
         scale = 1/200.;
 
         show(new Rectangle(0, 0, (int)(3.5/scale), (int)(2./scale)));
+    }
+
+    /**
+     * Convenience method to zoom in/out of a certain point given a scale.
+     * @param x The x-coordinate of the anchor point in image coordinates.
+     * @param y The y-coordinate of the anchor point in image coordinates.
+     * @param scale Multiplied with the old size to determine the new one.
+     */
+    public synchronized void scale(int x, int y, double scale) {
+        final int width = image.getWidth(), height = image.getHeight();
+
+        final double w = width * scale;
+        final double h = height * scale;
+        final int nx = (int)Math.round((width - w) * x / width);
+        final int ny = (int)Math.round((height - h) * y / height);
+
+        show(new Rectangle(nx, ny, (int) Math.round(w), (int) Math.round(h)));
+    }
+
+    /**
+     * Convenience method to move the view area by a certain delta.
+     * @param dx The x-translation in image coordinates.
+     */
+    public synchronized void translate(int dx, int dy) {
+        show(new Rectangle(dx, dy, image.getWidth(), image.getHeight()));
     }
 
     // ==== ActionListener Implementation ====
