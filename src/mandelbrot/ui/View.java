@@ -51,29 +51,30 @@ public class View extends JComponent implements Observer {
 
             @Override
             public void mouseReleased(MouseEvent e) {
+                /*
                 model.show(new Rectangle(Math.min(pressed.x, e.getX()),
                                          Math.min(pressed.y, e.getY()),
                                          Math.abs(pressed.x - e.getX()),
                                          Math.abs(pressed.y - e.getY())));
+                                         */
+            }
+
+            // zoom on double click
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    zoom(e.getPoint(), e.getButton() == MouseEvent.BUTTON1 ?
+                        ZOOM_FACTOR  : 1 / ZOOM_FACTOR);
+                }
             }
         });
 
+        // zoom through mouse wheel movement
         addMouseWheelListener(new MouseWheelListener() {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
-                final Dimension size = model.getSize();
-
-                final double factor = e.getWheelRotation() < 0 ?
-                    ZOOM_FACTOR : 1 / ZOOM_FACTOR;
-
-                final double w = size.width * factor, h = size.height * factor;
-                final int x = (int)Math.round((size.width - w) * e.getX() /
-                    size.width);
-                final int y = (int)Math.round((size.height - h) * e.getY() /
-                    size.height);
-
-                model.show(new Rectangle(x, y, (int)Math.round(w),
-                    (int)Math.round(h)));
+                zoom(e.getPoint(), e.getWheelRotation() < 0 ? ZOOM_FACTOR  :
+                    1 / ZOOM_FACTOR);
             }
         });
     }
@@ -95,5 +96,19 @@ public class View extends JComponent implements Observer {
         if (o == model) {
             repaint();
         }
+    }
+
+    // ==== Private Helper Methods ====
+    private void zoom(Point location, double factor) {
+        final Dimension size = model.getSize();
+
+        final double w = size.width * factor, h = size.height * factor;
+        final int x = (int)Math.round((size.width - w) * location.getX() /
+            size.width);
+        final int y = (int)Math.round((size.height - h) * location.getY() /
+            size.height);
+
+        model.show(new Rectangle(x, y, (int)Math.round(w),
+            (int)Math.round(h)));
     }
 }
