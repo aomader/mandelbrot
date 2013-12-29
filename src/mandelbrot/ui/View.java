@@ -11,6 +11,10 @@ import java.util.Observer;
 
 public class View extends JComponent implements Observer {
 
+    // ==== Constants ====
+
+    final private double ZOOM_FACTOR = .6;
+
     // ==== Properties ====
 
     final private Model model;
@@ -26,13 +30,12 @@ public class View extends JComponent implements Observer {
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                super.componentResized(e);
+                // better use window resized event
                 model.setSize(e.getComponent().getSize());
             }
 
             @Override
             public void componentShown(ComponentEvent e) {
-                super.componentShown(e);
                 model.setSize(getSize());
                 model.fit();
             }
@@ -43,17 +46,34 @@ public class View extends JComponent implements Observer {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                super.mousePressed(e);
                 pressed = e.getPoint();
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                super.mouseReleased(e);
                 model.show(new Rectangle(Math.min(pressed.x, e.getX()),
                                          Math.min(pressed.y, e.getY()),
                                          Math.abs(pressed.x - e.getX()),
                                          Math.abs(pressed.y - e.getY())));
+            }
+        });
+
+        addMouseWheelListener(new MouseWheelListener() {
+            @Override
+            public void mouseWheelMoved(MouseWheelEvent e) {
+                final Dimension size = model.getSize();
+
+                final double factor = e.getWheelRotation() < 0 ?
+                    ZOOM_FACTOR : 1 / ZOOM_FACTOR;
+
+                final double w = size.width * factor, h = size.height * factor;
+                final int x = (int)Math.round((size.width - w) * e.getX() /
+                    size.width);
+                final int y = (int)Math.round((size.height - h) * e.getY() /
+                    size.height);
+
+                model.show(new Rectangle(x, y, (int)Math.round(w),
+                    (int)Math.round(h)));
             }
         });
     }
