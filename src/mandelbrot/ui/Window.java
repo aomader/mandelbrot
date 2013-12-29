@@ -5,6 +5,8 @@ import mandelbrot.ui.locale.Localization;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 public class Window extends JFrame {
 
@@ -16,7 +18,7 @@ public class Window extends JFrame {
         setVisible(true);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
-        Model model = new Model();
+        final Model model = new Model();
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(new Controls(model), BorderLayout.EAST);

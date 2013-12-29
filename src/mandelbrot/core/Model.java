@@ -26,6 +26,7 @@ public class Model extends Observable implements ActionListener {
     private int[] indexes;
     private AtomicInteger index = new AtomicInteger();
 
+    public boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
     private double scale = 1/200.;
     private int fps = 25;
@@ -54,6 +55,25 @@ public class Model extends Observable implements ActionListener {
      */
     public synchronized BufferedImage getImage() {
         return image;
+    }
+
+    /**
+     * Whether the model shall rerender the image if necessary, e.g. caused
+     * by a call to {@code show()}.
+     * @return The current active state.
+     */
+    public synchronized boolean getActive() {
+        return active;
+    }
+
+    /**
+     * Set the re-render state.
+     * @param active The new re-render behavior.
+     */
+    public synchronized void setActive(boolean active) {
+        stopDrawing();
+        this.active = active;
+        startDrawing();
     }
 
     /**
@@ -200,6 +220,9 @@ public class Model extends Observable implements ActionListener {
         image.getGraphics().drawImage(s, 0, 0, image.getWidth(),
                                       image.getHeight(), null);
 
+        setChanged();
+        notifyObservers();
+
         startDrawing();
     }
 
@@ -277,18 +300,20 @@ public class Model extends Observable implements ActionListener {
     }
 
     private void startDrawing() {
-        index.set(0);
+        if (active) {
+            index.set(0);
 
-        // spawn new threads to perform the calculations
-        for (int i = 0; i < cores; ++i) {
-            Thread thread = new Calculation();
-            thread.start();
-            threads.add(thread);
+            // spawn new threads to perform the calculations
+            for (int i = 0; i < cores; ++i) {
+                Thread thread = new Calculation();
+                thread.start();
+                threads.add(thread);
+            }
+
+            timer.start();
+
+            renderingStart = System.currentTimeMillis();
         }
-
-        timer.start();
-
-        renderingStart = System.currentTimeMillis();
     }
 
     // ==== Calculation Task ====

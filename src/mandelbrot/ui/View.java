@@ -9,15 +9,18 @@ import java.awt.image.BufferedImage;
 import java.util.Observable;
 import java.util.Observer;
 
-public class View extends JComponent implements Observer {
+public class View extends JComponent implements Observer, ActionListener {
 
     // ==== Constants ====
 
-    final private double ZOOM_FACTOR = .6;
+    private final double ZOOM_FACTOR = .6;
+    private final double PAN_THRESHOLD = 8.;
 
     // ==== Properties ====
 
-    final private Model model;
+    private final Model model;
+
+    //private final Timer timer = new Timer(1000, this);
 
     // ==== Constructor ====
 
@@ -30,7 +33,6 @@ public class View extends JComponent implements Observer {
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                // better use window resized event
                 model.setSize(e.getComponent().getSize());
             }
 
@@ -41,22 +43,42 @@ public class View extends JComponent implements Observer {
             }
         });
 
-        addMouseListener(new MouseAdapter() {
+        // zooming and panning
+        MouseAdapter mouseAdapter = new MouseAdapter() {
             private Point pressed;
+            private boolean panning;
 
             @Override
             public void mousePressed(MouseEvent e) {
                 pressed = e.getPoint();
+                panning = false;
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                /*
-                model.show(new Rectangle(Math.min(pressed.x, e.getX()),
-                                         Math.min(pressed.y, e.getY()),
-                                         Math.abs(pressed.x - e.getX()),
-                                         Math.abs(pressed.y - e.getY())));
-                                         */
+                if (panning) {
+                    model.setActive(true);
+                }
+            }
+
+            // panning
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (!panning) {
+                    double d = Math.sqrt(Math.pow(pressed.getX() - e.getX(), 2) +
+                        Math.pow(pressed.getY() - e.getY(), 2));
+                    if (d >= PAN_THRESHOLD) {
+                        panning = true;
+                        pressed = e.getPoint();
+                        model.setActive(false);
+                    }
+                } else {
+                    Rectangle rect = new Rectangle(model.getSize());
+                    rect.setLocation(pressed.x - e.getX(), pressed.y - e.getY());
+                    model.show(rect);
+
+                    pressed = e.getPoint();
+                }
             }
 
             // zoom on double click
@@ -67,16 +89,18 @@ public class View extends JComponent implements Observer {
                         ZOOM_FACTOR  : 1 / ZOOM_FACTOR);
                 }
             }
-        });
 
-        // zoom through mouse wheel movement
-        addMouseWheelListener(new MouseWheelListener() {
+            // zoom through mouse wheel movement
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
                 zoom(e.getPoint(), e.getWheelRotation() < 0 ? ZOOM_FACTOR  :
                     1 / ZOOM_FACTOR);
             }
-        });
+        };
+
+        addMouseListener(mouseAdapter);
+        addMouseMotionListener(mouseAdapter);
+        addMouseWheelListener(mouseAdapter);
     }
 
     // ==== JComponent Overrides ====
@@ -98,7 +122,15 @@ public class View extends JComponent implements Observer {
         }
     }
 
+    // ==== ActionListener Implementation
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+
+    }
+
     // ==== Private Helper Methods ====
+
     private void zoom(Point location, double factor) {
         final Dimension size = model.getSize();
 
@@ -111,4 +143,5 @@ public class View extends JComponent implements Observer {
         model.show(new Rectangle(x, y, (int)Math.round(w),
             (int)Math.round(h)));
     }
+
 }

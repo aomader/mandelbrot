@@ -19,28 +19,28 @@ public class Controls extends Box implements Observer, ActionListener,
 
     // ==== Constants ====
 
-    final double ZOOM_FACTOR = .6;
-    final double MOVE_FACTOR = .6;
+    private final double ZOOM_FACTOR = .6;
+    private final double MOVE_FACTOR = .6;
 
     // ==== Properties ====
 
-    final private Model model;
+    private final Model model;
 
-    final private JSpinner fpsSpinner = new JSpinner(
+    private final JSpinner fpsSpinner = new JSpinner(
         new SpinnerNumberModel(25, 1, 60, 1));
-    final private JSpinner maxIterSpinner = new JSpinner(
+    private final JSpinner maxIterSpinner = new JSpinner(
         new SpinnerNumberModel(1000, 0, 10000, 10));
-    final private JSpinner maxRadiusSpinner = new JSpinner(
+    private final JSpinner maxRadiusSpinner = new JSpinner(
         new SpinnerNumberModel(2, 0, 100, 0.1));
-    final private JButton leftButton = createControlButton("main.left");
-    final private JButton rightButton = createControlButton("main.right");
-    final private JButton upButton = createControlButton("main.up");
-    final private JButton downButton = createControlButton("main.down");
-    final private JButton inButton = createControlButton("main.in");
-    final private JButton outButton = createControlButton("main.out");
-    final private JButton fitButton = createControlButton("main.fit");
-    final private JLabel renderingLabel = new JLabel();
-    final private JProgressBar progressBar = new JProgressBar();
+    private final JButton leftButton = createControlButton("main.left");
+    private final JButton rightButton = createControlButton("main.right");
+    private final JButton upButton = createControlButton("main.up");
+    private final JButton downButton = createControlButton("main.down");
+    private final JButton inButton = createControlButton("main.in");
+    private final JButton outButton = createControlButton("main.out");
+    private final JButton fitButton = createControlButton("main.fit");
+    private final JLabel renderingLabel = new JLabel();
+    private final JProgressBar progressBar = new JProgressBar();
 
     // ==== Constructor ====
 
