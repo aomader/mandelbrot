@@ -5,7 +5,6 @@ import mandelbrot.ui.locale.Localization;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -17,6 +16,11 @@ import java.util.Observer;
 
 public class Controls extends Box implements Observer, ActionListener,
     ChangeListener {
+
+    // ==== Constants ====
+
+    final double ZOOM_FACTOR = .6;
+    final double MOVE_FACTOR = .6;
 
     // ==== Properties ====
 
@@ -59,6 +63,8 @@ public class Controls extends Box implements Observer, ActionListener,
         rightButton.addActionListener(this);
         upButton.addActionListener(this);
         downButton.addActionListener(this);
+        inButton.addActionListener(this);
+        outButton.addActionListener(this);
         fitButton.addActionListener(this);
 
         // settings
@@ -102,9 +108,37 @@ public class Controls extends Box implements Observer, ActionListener,
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == fitButton) {
+        final Object source = e.getSource();
+
+        // fit best
+        if (source == fitButton) {
             model.fit();
+            return;
         }
+
+        Dimension size = model.getSize();
+        Rectangle rect = new Rectangle(size);
+
+        // zoom in and out
+        if (source == inButton || source == outButton) {
+            double factor = source == inButton ? ZOOM_FACTOR : 1/ZOOM_FACTOR;
+            double w = size.width * factor, h = size.height * factor;
+            rect.setSize((int)Math.round(w), (int)Math.round(h));
+            rect.setLocation((int)Math.round((size.width - w)/2.),
+                (int)Math.round((size.height - h)/2.));
+
+        // moving
+        } else if (e.getSource() == leftButton) {
+            rect.setLocation((int)Math.round(-size.width * MOVE_FACTOR), 0);
+        } else if (e.getSource() == rightButton) {
+            rect.setLocation((int)Math.round(size.width * MOVE_FACTOR), 0);
+        } else if (e.getSource() == upButton) {
+            rect.setLocation(0, (int)Math.round(-size.height * MOVE_FACTOR));
+        } else if (e.getSource() == downButton) {
+            rect.setLocation(0, (int)Math.round(size.height * MOVE_FACTOR));
+        }
+
+        model.show(rect);
     }
 
     // ==== ChangeListener Implementation
