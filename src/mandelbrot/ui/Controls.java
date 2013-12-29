@@ -133,7 +133,8 @@ public class Controls extends Box implements Observer, ActionListener,
             maxRadiusSpinner.getModel().setValue(model.getMaxRadius());
             renderingLabel.setText(model.getProgress() < 1.f ?
                 Localization.get("main.rendering.title") :
-                String.format(Localization.get("main.rendered.title"), 0.1337));
+                String.format(Localization.get("main.rendered.title"),
+                    model.getRenderingTime() / 1000.f));
         }
     }
 

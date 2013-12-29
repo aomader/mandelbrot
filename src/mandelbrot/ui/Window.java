@@ -5,7 +5,7 @@ import mandelbrot.core.Model;
 import javax.swing.*;
 import java.awt.*;
 
-public class Window extends JDialog {
+public class Window extends JFrame {
 
     public Window() {
         super();
@@ -13,7 +13,7 @@ public class Window extends JDialog {
         setTitle("Mandelbrot");
         setSize(1024, 700);
         setVisible(true);
-        //setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         Model model = new Model();
 

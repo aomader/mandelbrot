@@ -31,6 +31,8 @@ public class Model extends Observable implements ActionListener {
     private int fps = 25;
     private int maxIter = 1000;
     private double maxRadius = 2;
+    private long renderingTime = 0;
+    private long renderingStart = 0;
 
     private BufferedImage image;
     private WritableRaster raster;
@@ -149,6 +151,15 @@ public class Model extends Observable implements ActionListener {
      */
     public synchronized float getProgress() {
         return Math.min(1.f, (float)index.get() / indexes.length);
+    }
+
+    /**
+     * Get the needed time to render the current image. The value is only
+     * meaningful if a call to {@code getProgress()} returns 1.f.
+     * @return The rendering time in milliseconds.
+     */
+    public synchronized long getRenderingTime() {
+        return renderingTime;
     }
 
     // ==== Public Methods
@@ -276,6 +287,8 @@ public class Model extends Observable implements ActionListener {
         }
 
         timer.start();
+
+        renderingStart = System.currentTimeMillis();
     }
 
     // ==== Calculation Task ====
@@ -292,6 +305,13 @@ public class Model extends Observable implements ActionListener {
             while (!Thread.currentThread().isInterrupted()) {
                 // get next pixel candidate
                 final int idx = index.getAndIncrement();
+
+                // last thread without a task updates the rendering time,
+                // that's not quite correct, since some threads might still
+                // do something, but that is negligible
+                if (idx == total) {
+                    renderingTime = System.currentTimeMillis() - renderingStart;
+                }
 
                 // stop when all pixels are consumed
                 if (idx >= total) {
