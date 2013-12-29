@@ -5,6 +5,8 @@ import mandelbrot.ui.locale.Localization;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 import java.awt.*;
@@ -42,7 +44,9 @@ public class Controls extends Box implements Observer, ActionListener,
         super(BoxLayout.Y_AXIS);
 
         setMaximumSize(new Dimension(300, Integer.MAX_VALUE));
-        setBorder(new EmptyBorder(15, 15, 15, 15));
+        setBorder(BorderFactory.createCompoundBorder(
+            new MatteBorder(0, 1, 0, 0, new Color(150, 150, 150)),
+            new EmptyBorder(15, 15, 15, 15)));
 
         model = aModel;
         model.addObserver(this);
@@ -110,8 +114,11 @@ public class Controls extends Box implements Observer, ActionListener,
         if (e.getSource() == fpsSpinner) {
             model.setFps((Integer) fpsSpinner.getModel().getValue());
         } else if (e.getSource() == maxIterSpinner) {
-            model.setMaximumIterations(
-                (Integer)maxIterSpinner.getModel().getValue());
+            model.setMaxIterations(
+                (Integer) maxIterSpinner.getModel().getValue());
+        } else if (e.getSource() == maxRadiusSpinner) {
+            model.setMaxRadius(
+                (Double)maxRadiusSpinner.getModel().getValue());
         }
     }
 
@@ -122,7 +129,8 @@ public class Controls extends Box implements Observer, ActionListener,
         if (o == model) {
             progressBar.setValue((int)(model.getProgress() * 100));
             fpsSpinner.getModel().setValue(model.getFps());
-            maxIterSpinner.getModel().setValue(model.getMaximumIterations());
+            maxIterSpinner.getModel().setValue(model.getMaxIterations());
+            maxRadiusSpinner.getModel().setValue(model.getMaxRadius());
             renderingLabel.setText(model.getProgress() < 1.f ?
                 Localization.get("main.rendering.title") :
                 String.format(Localization.get("main.rendered.title"), 0.1337));

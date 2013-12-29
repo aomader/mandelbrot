@@ -30,6 +30,7 @@ public class Model extends Observable implements ActionListener {
     private double scale = 1/200.;
     private int fps = 25;
     private int maxIter = 1000;
+    private double maxRadius = 2;
 
     private BufferedImage image;
     private WritableRaster raster;
@@ -43,6 +44,15 @@ public class Model extends Observable implements ActionListener {
     }
 
     // ==== Accessors ====
+
+    /**
+     * Get the image the algorithm renders to. It might show a not completely
+     * rendered versions.
+     * @return The rendered image.
+     */
+    public synchronized BufferedImage getImage() {
+        return image;
+    }
 
     /**
      * Get the size of the created image.
@@ -76,33 +86,61 @@ public class Model extends Observable implements ActionListener {
         startDrawing();
     }
 
+    /**
+     * Get the frames per second or better the amount of update notifications
+     * per second.
+     * @return The frames per second while rendering.
+     */
     public synchronized int getFps() {
         return fps;
     }
 
+    /**
+     * Set the frames per second.
+     * @param fps The new frames per second.
+     */
     public synchronized void setFps(int fps) {
         this.fps = fps;
         timer.setDelay(1000 / fps);
         timer.setInitialDelay(1000 / fps);
     }
 
-    public synchronized int getMaximumIterations() {
+    /**
+     * Get the number of maximally used iterations to determine whether a point
+     * "escaped" or not.
+     * @return The number of maximal iterations.
+     */
+    public synchronized int getMaxIterations() {
         return maxIter;
     }
 
-    public synchronized void setMaximumIterations(int maxIter) {
+    /**
+     * Set the number of maximal iterations.
+     * @param maxIter The new number of maximal iterations.
+     */
+    public synchronized void setMaxIterations(int maxIter) {
         stopDrawing();
         this.maxIter = maxIter;
         startDrawing();
     }
 
     /**
-     * Get the image the algorithm renders to. It might show not completely
-     * rendered versions.
-     * @return The rendered image.
+     * Get the maximal radius around the origin after which a point is
+     * considered "escaped".
+     * @return The maximal escape radius.
      */
-    public synchronized BufferedImage getImage() {
-        return image;
+    public synchronized double getMaxRadius() {
+        return maxRadius;
+    }
+
+    /**
+     * Set the maximal escape radius. Triggers also a redraw.
+     * @param maxRadius The new radius.
+     */
+    public synchronized void setMaxRadius(double maxRadius) {
+        stopDrawing();
+        this.maxRadius = maxRadius;
+        startDrawing();
     }
 
     /**
@@ -270,7 +308,8 @@ public class Model extends Observable implements ActionListener {
                 final double my = (xy / width) * scale + location.getY();
 
                 // the actual time consuming computation
-                final int iter = Algorithm.escapeTime(mx, my, 2, maxIter);
+                final int iter = Algorithm.escapeTime(mx, my, maxRadius,
+                    maxIter);
 
                 /* TODO: The arrangement, e.g. RGB, BGR, etc. is defined by
                          the image, we have to look that up. */
