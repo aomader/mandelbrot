@@ -270,16 +270,21 @@ public class Model extends Observable implements ActionListener {
                 final double my = (xy / width) * scale + location.getY();
 
                 // the actual time consuming computation
-                final int iter = Algorithm.escapeTime(mx, my, 4, maxIter);
+                final int iter = Algorithm.escapeTime(mx, my, 2, maxIter);
 
                 /* TODO: The arrangement, e.g. RGB, BGR, etc. is defined by
                          the image, we have to look that up. */
 
                 // set the new color of the pixel
+                Graphics g = image.getGraphics();
+                g.setColor(Algorithm.colorFromIterations(iter, maxIter));
+                g.fillRect(x, y, 1, 1);
+                /*
                 pixel[0] = (int)((float)iter/255 * 255);
                 pixel[1] = pixel[0];
                 pixel[2] = pixel[0];
                 raster.setPixel(x, y, pixel);
+                */
             }
         }
     }
