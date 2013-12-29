@@ -5,8 +5,6 @@ import mandelbrot.ui.locale.Localization;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 
 public class Window extends JFrame {
 
@@ -23,7 +21,6 @@ public class Window extends JFrame {
         JPanel panel = new JPanel(new BorderLayout());
         panel.add(new Controls(model), BorderLayout.EAST);
         panel.add(new View(model), BorderLayout.CENTER);
-
         setContentPane(panel);
     }
 }

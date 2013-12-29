@@ -20,7 +20,7 @@ public class View extends JComponent implements Observer, ActionListener {
 
     private final Model model;
 
-    //private final Timer timer = new Timer(1000, this);
+    private final Timer timer = new Timer(250, this);
 
     // ==== Constructor ====
 
@@ -30,10 +30,13 @@ public class View extends JComponent implements Observer, ActionListener {
         model = aModel;
         model.addObserver(this);
 
+        timer.setRepeats(false);
+
+        // resizing
         addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                model.setSize(e.getComponent().getSize());
+                timer.restart();
             }
 
             @Override
@@ -110,7 +113,9 @@ public class View extends JComponent implements Observer, ActionListener {
         super.paintComponent(g);
 
         BufferedImage image = model.getImage();
-        g.drawImage(image, 0, 0, image.getWidth(), image.getHeight(), null);
+        int w = Math.min(image.getWidth(), getWidth()),
+            h = Math.min(image.getHeight(), getHeight());
+        g.drawImage(image, 0, 0, w, h, 0, 0, w, h, null);
     }
 
     // ==== Observer Implementation ====
@@ -126,7 +131,9 @@ public class View extends JComponent implements Observer, ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-
+        if (e.getSource() == timer) {
+            model.setSize(getSize());
+        }
     }
 
     // ==== Private Helper Methods ====

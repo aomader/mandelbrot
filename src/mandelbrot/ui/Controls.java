@@ -20,7 +20,7 @@ public class Controls extends Box implements Observer, ActionListener,
     // ==== Constants ====
 
     private final double ZOOM_FACTOR = .6;
-    private final double MOVE_FACTOR = .6;
+    private final double MOVE_FACTOR = .4;
 
     // ==== Properties ====
 
