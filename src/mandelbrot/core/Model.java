@@ -125,7 +125,7 @@ public class Model extends Observable implements ActionListener {
      *
      * @return Amount of threads.
      */
-    public synchronized int getThreadCount() {
+    public synchronized final int getThreadCount() {
         return threadCount;
     }
 
@@ -262,7 +262,7 @@ public class Model extends Observable implements ActionListener {
      *
      * @return The number of maximal iterations.
      */
-    public synchronized int getMaxIterations() {
+    public synchronized final int getMaxIterations() {
         return maxIter;
     }
 
@@ -298,7 +298,7 @@ public class Model extends Observable implements ActionListener {
      *
      * @return The maximal escape radius.
      */
-    public synchronized double getMaxRadius() {
+    public synchronized final double getMaxRadius() {
         return maxRadius;
     }
 
@@ -318,7 +318,7 @@ public class Model extends Observable implements ActionListener {
      *
      * @return The state of the usage.
      */
-    public synchronized boolean getHistEqualization() {
+    public synchronized final boolean getHistEqualization() {
         return histEqualization;
     }
 
@@ -341,7 +341,7 @@ public class Model extends Observable implements ActionListener {
      *
      * @return The progress of the last rendering attempt.
      */
-    public synchronized float getProgress() {
+    public synchronized final float getProgress() {
         return Math.min(1.f, (float)processed.get() / indexes.length /
             (histEqualization ? 2 : 1));
     }
@@ -352,11 +352,11 @@ public class Model extends Observable implements ActionListener {
      *
      * @return The rendering time in milliseconds.
      */
-    public synchronized long getRenderingTime() {
+    public synchronized final long getRenderingTime() {
         return renderingTime;
     }
 
-    // ==== Public Methods
+    // ==== Public Methods ====
 
     /**
      * Updates the location and the scale such that the rectangle is shown
