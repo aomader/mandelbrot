@@ -7,6 +7,7 @@ public class Algorithm {
 
     /**
      * A simple implementation of the escape time algorithm.
+     *
      * @param x X-Coordinate within the mandelbrot space [-2.5, 1].
      * @param y Y-Coordinate within the mandelbrot space [-1, 1].
      * @param maxRadius Maximum radius above we consider the sequence outside.
@@ -36,6 +37,7 @@ public class Algorithm {
 
     /**
      * A simple implementation of the normalized iteration count algorithm.
+     *
      * @param x X-Coordinate within the mandelbrot space [-2.5, 1].
      * @param y Y-Coordinate within the mandelbrot space [-1, 1].
      * @param maxRadius Maximum radius above we consider the sequence outside.
@@ -74,6 +76,7 @@ public class Algorithm {
     /**
      * Create a color palette indexed by iteration count by interpolating
      * tick values if necessary,
+     *
      * @param mapping A mapping from normalized iteration count to ARGB color.
      * @param maxIter The maximum number of iterations.
      * @return A new color palette with maxIter + 1 items.
@@ -109,6 +112,7 @@ public class Algorithm {
 
     /**
      * Linearly interpolate between two colors.
+     *
      * @param colorA The first color in ARGB format starting with the MSB.
      * @param colorB The second color in ARGB format starting with the MSB.
      * @param balance Balance between first and second color in range [0, 1].

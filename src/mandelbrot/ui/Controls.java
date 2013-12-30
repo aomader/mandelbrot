@@ -29,6 +29,9 @@ public class Controls extends Box implements Observer, ActionListener,
 
     private final JSpinner fpsSpinner = new JSpinner(
         new SpinnerNumberModel(25, 1, 60, 1));
+    private final JComboBox<String> algorithmBox = new JComboBox<String>(
+        new String[] {Localization.get("main.algorithm.escape_time"),
+        Localization.get("main.algorithm.normalized_iteration_count")});
     private final JSpinner maxIterSpinner = new JSpinner(
         new SpinnerNumberModel(1000, 0, 10000, 10));
     private final JSpinner maxRadiusSpinner = new JSpinner(
@@ -48,7 +51,7 @@ public class Controls extends Box implements Observer, ActionListener,
     public Controls(Model aModel) {
         super(BoxLayout.Y_AXIS);
 
-        setPreferredSize(new Dimension(220, 600));
+        setPreferredSize(new Dimension(250, 800));
         setBorder(BorderFactory.createCompoundBorder(
             new MatteBorder(0, 1, 0, 0, new Color(150, 150, 150)),
             new EmptyBorder(20, 20, 20, 20)));
@@ -58,6 +61,7 @@ public class Controls extends Box implements Observer, ActionListener,
 
         // add listeners
         fpsSpinner.addChangeListener(this);
+        algorithmBox.addActionListener(this);
         maxIterSpinner.addChangeListener(this);
         maxRadiusSpinner.addChangeListener(this);
         leftButton.addActionListener(this);
@@ -70,6 +74,8 @@ public class Controls extends Box implements Observer, ActionListener,
 
         // settings
         addSetting("main.fps", fpsSpinner);
+        add(Box.createRigidArea(new Dimension(0, 30)));
+        addSetting("main.algorithm", algorithmBox);
         add(Box.createRigidArea(new Dimension(0, 30)));
         addSetting("main.iter", maxIterSpinner);
         add(Box.createRigidArea(new Dimension(0, 30)));
@@ -115,11 +121,12 @@ public class Controls extends Box implements Observer, ActionListener,
         // fit best
         if (source == fitButton) {
             model.fit();
-        }
+
         // zooming and moving
-        else if (source == inButton || source == outButton) {
+        } else if (source == inButton || source == outButton) {
             model.scale(size.width / 2, size.height / 2, source == inButton ?
                 ZOOM_FACTOR : 1/ZOOM_FACTOR);
+
         // moving
         } else if (source == leftButton) {
             model.translate((int)Math.round(-size.width * MOVE_FACTOR), 0);
@@ -129,6 +136,12 @@ public class Controls extends Box implements Observer, ActionListener,
             model.translate(0, (int)Math.round(-size.height * MOVE_FACTOR));
         } else if (source == downButton) {
             model.translate(0, (int)Math.round(size.height * MOVE_FACTOR));
+
+        // algorithm
+        } else if (source == algorithmBox) {
+            model.setAlgorithm(algorithmBox.getSelectedIndex() == 0 ?
+                Model.ALGORITHM_ESCAPE_TIME :
+                Model.ALGORITHM_NORMALIZED_ITERATION_COUNT);
         }
     }
 
@@ -152,14 +165,16 @@ public class Controls extends Box implements Observer, ActionListener,
     @Override
     public void update(Observable o, Object arg) {
         if (o == model) {
-            progressBar.setValue((int)(model.getProgress() * 100));
             fpsSpinner.getModel().setValue(model.getFps());
+            algorithmBox.setSelectedIndex(
+                model.getAlgorithm() == Model.ALGORITHM_ESCAPE_TIME ? 0 : 1);
             maxIterSpinner.getModel().setValue(model.getMaxIterations());
             maxRadiusSpinner.getModel().setValue(model.getMaxRadius());
             renderingLabel.setText(model.getProgress() < 1.f ?
                 Localization.get("main.rendering.title") :
                 String.format(Localization.get("main.rendered.title"),
                     model.getRenderingTime() / 1000.f));
+            progressBar.setValue((int)(model.getProgress() * 100));
         }
     }
 
@@ -188,6 +203,7 @@ public class Controls extends Box implements Observer, ActionListener,
         textArea.setText(text);
         textArea.setMaximumSize(new Dimension(300, 400));
         textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
         return textArea;
     }
 

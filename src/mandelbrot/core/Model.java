@@ -13,6 +13,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class Model extends Observable implements ActionListener {
 
+    // ==== Constants ====
+
+    /**
+     * Escape Time Algorithm to compute the iteration count bounded by
+     * maxRadius and maxIterations.
+     */
+    public static final int ALGORITHM_ESCAPE_TIME = 0;
+
+    /**
+     * Normalized Iteration Count Algorithm to compute the iteration count
+     * bounded by maxRadius and maxIterations.
+     */
+    public static final int ALGORITHM_NORMALIZED_ITERATION_COUNT = 1;
+
     // ==== Properties ====
 
     private final GraphicsConfiguration config =
@@ -26,10 +40,11 @@ public class Model extends Observable implements ActionListener {
     private int[] indexes;
     private AtomicInteger index = new AtomicInteger();
 
-    public boolean active = true;
+    private boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
     private double scale = 1/200.;
     private int fps = 25;
+    private int algorithm = ALGORITHM_NORMALIZED_ITERATION_COUNT;
     private int maxIter = 1000;
     private double maxRadius = 2;
     private long renderingTime = 0;
@@ -66,24 +81,29 @@ public class Model extends Observable implements ActionListener {
     /**
      * Get the image the algorithm renders to. It might show a not completely
      * rendered versions.
+     *
      * @return The rendered image.
      */
-    public synchronized BufferedImage getImage() {
+    public synchronized final BufferedImage getImage() {
         return image;
     }
 
     /**
      * Whether the model shall re-render the image if necessary, e.g. caused
      * by a call to {@code show()}.
+     *
      * @return The current active state.
+     * @see #setActive(boolean)
      */
-    public synchronized boolean getActive() {
+    public synchronized final boolean isActive() {
         return active;
     }
 
     /**
      * Set the re-render state.
+     *
      * @param active The new re-render behavior.
+     * @see #isActive()
      */
     public synchronized void setActive(boolean active) {
         stopDrawing();
@@ -93,47 +113,58 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Get the size of the created image.
+     *
      * @return The size of the image.
+     * @see #setSize(java.awt.Dimension)
      */
-    public synchronized Dimension getSize() {
+    public synchronized final Dimension getSize() {
         return new Dimension(this.image.getWidth(), this.image.getHeight());
     }
 
     /**
      * Set's the size of the rendered image, triggers a redraw if necessary.
+     *
      * @param size The new size of the image.
+     * @see #getSize()
      */
     public synchronized void setSize(Dimension size) {
-        stopDrawing();
+        if (size.width != image.getWidth() ||
+            size.height != image.getHeight()) {
+            stopDrawing();
 
-        BufferedImage newImage = config.createCompatibleImage(size.width,
-            size.height, Transparency.OPAQUE);
+            BufferedImage newImage = config.createCompatibleImage(size.width,
+                size.height, Transparency.OPAQUE);
 
-        // copy over already rendered parts
-        if (image != null) {
-            newImage.getGraphics().drawImage(image, 0, 0, image.getWidth(),
-                                             image.getHeight(), null);
+            // copy over already rendered parts
+            if (image != null) {
+                newImage.getGraphics().drawImage(image, 0, 0, image.getWidth(),
+                    image.getHeight(), null);
+            }
+
+            image = newImage;
+
+            updateIndexes();
+
+            startDrawing();
         }
-
-        image = newImage;
-
-        updateIndexes();
-
-        startDrawing();
     }
 
     /**
      * Get the frames per second or better the amount of update notifications
      * per second.
+     *
      * @return The frames per second while rendering.
+     * @see #setFps(int)
      */
-    public synchronized int getFps() {
+    public synchronized final int getFps() {
         return fps;
     }
 
     /**
      * Set the frames per second.
+     *
      * @param fps The new frames per second.
+     * @see #getFps()
      */
     public synchronized void setFps(int fps) {
         this.fps = fps;
@@ -142,8 +173,56 @@ public class Model extends Observable implements ActionListener {
     }
 
     /**
+     * Get the currently used algorithm to calculate the sequence and thus the
+     * iteration count.
+     *
+     * @return The used algorithm.
+     */
+    public synchronized final int getAlgorithm() {
+        return algorithm;
+    }
+
+    /**
+     * Set the algorithm used to calculate the sequence and thus the
+     * iteration count. Triggers also a redraw.
+     * You must specify one of the following choices:
+     *
+     * <p>
+     * <ul>
+     * <li>{@code ALGORITHM_ESCAPE_TIME}
+     * (defined in {@code Model}):
+     * Uses the very simple but frequently used Escape Time Algorithm. This
+     * might introduce visual banding and thus reducing the appeal of the image.
+     *
+     * <li>{@code ALGORITHM_NORMALIZED_ITERATION_COUNT}
+     * (defined in {@code Model}):
+     * Similar to {@code ALGORITHM_ESCAPE_TIME} but with the addition of
+     * reducing the visual banding by applying some sort of logarithmic
+     * smoothing.
+     * </ul>
+     *
+     * @param algorithm The algorithm which should be used.
+     * @see #getAlgorithm()
+     * @see Model
+     */
+    public synchronized void setAlgorithm(int algorithm) {
+        if (algorithm != ALGORITHM_ESCAPE_TIME &&
+            algorithm != ALGORITHM_NORMALIZED_ITERATION_COUNT) {
+            throw new IllegalArgumentException("algorithm must be one of: " +
+                "ALGORITHM_ESCAPE_TIME, ALGORITHM_NORMALIZED_ITERATION_COUNT");
+        }
+
+        if (this.algorithm != algorithm) {
+            stopDrawing();
+            this.algorithm = algorithm;
+            startDrawing();
+        }
+    }
+
+    /**
      * Get the number of maximally used iterations to determine whether a point
      * "escaped" or not.
+     *
      * @return The number of maximal iterations.
      */
     public synchronized int getMaxIterations() {
@@ -152,18 +231,27 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Set the number of maximal iterations.
+     *
      * @param maxIter The new number of maximal iterations.
      */
     public synchronized void setMaxIterations(int maxIter) {
-        stopDrawing();
-        this.maxIter = maxIter;
-        palette = Algorithm.createPalette(colors, maxIter);
-        startDrawing();
+        if (maxIter < 0) {
+            throw new IllegalArgumentException("maxIter must be equal or " +
+                "larger than 0");
+        }
+
+        if (this.maxIter != maxIter) {
+            stopDrawing();
+            this.maxIter = maxIter;
+            palette = Algorithm.createPalette(colors, maxIter);
+            startDrawing();
+        }
     }
 
     /**
      * Get the maximal radius around the origin after which a point is
      * considered "escaped".
+     *
      * @return The maximal escape radius.
      */
     public synchronized double getMaxRadius() {
@@ -172,6 +260,7 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Set the maximal escape radius. Triggers also a redraw.
+     *
      * @param maxRadius The new radius.
      */
     public synchronized void setMaxRadius(double maxRadius) {
@@ -182,6 +271,7 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Get the progress of the last rendering attempt in the range [0.f, 1.f].
+     *
      * @return The progress of the last rendering attempt.
      */
     public synchronized float getProgress() {
@@ -191,6 +281,7 @@ public class Model extends Observable implements ActionListener {
     /**
      * Get the needed time to render the current image. The value is only
      * meaningful if a call to {@code getProgress()} returns 1.f.
+     *
      * @return The rendering time in milliseconds.
      */
     public synchronized long getRenderingTime() {
@@ -202,6 +293,7 @@ public class Model extends Observable implements ActionListener {
     /**
      * Updates the location and the scale such that the rectangle is shown
      * best.
+     *
      * @param rectangle The region to show in image coordinates.
      */
     public synchronized void show(Rectangle rectangle) {
@@ -256,6 +348,7 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Convenience method to zoom in/out of a certain point given a scale.
+     *
      * @param x The x-coordinate of the anchor point in image coordinates.
      * @param y The y-coordinate of the anchor point in image coordinates.
      * @param scale Multiplied with the old size to determine the new one.
@@ -273,6 +366,7 @@ public class Model extends Observable implements ActionListener {
 
     /**
      * Convenience method to move the view area by a certain delta.
+     *
      * @param dx The x-translation in image coordinates.
      */
     public synchronized void translate(int dx, int dy) {
@@ -359,8 +453,6 @@ public class Model extends Observable implements ActionListener {
     // ==== Calculation Task ====
 
     private class Calculation extends Thread {
-        private int[] pixel = new int[3];
-
         @Override
         public void run() {
             final int width = image.getWidth();
@@ -393,19 +485,19 @@ public class Model extends Observable implements ActionListener {
                 final double my = (xy / width) * scale + location.getY();
 
                 // the actual time consuming computation
-                final double iter = Algorithm.normalizedIterationCount(mx, my,
-                    maxRadius, maxIter);
-
-                int color = (iter == maxIter) ? palette[maxIter] :
-                    Algorithm.interpolateColor(palette[(int)Math.floor(iter)],
+                int color;
+                if (algorithm == ALGORITHM_ESCAPE_TIME) {
+                    color = palette[Algorithm.escapeTime(mx, my, maxRadius,
+                        maxIter)];
+                } else {
+                    final double iter = Algorithm.normalizedIterationCount(mx, my,
+                        maxRadius, maxIter);
+                    color = Algorithm.interpolateColor(
+                        palette[(int)Math.floor(iter)],
                         palette[(int)Math.ceil(iter)], iter % 1);
+                }
 
                 image.setRGB(x, y, color);
-                /*
-                final int iter = Algorithm.escapeTime(mx, my, maxRadius,
-                    maxIter);
-                image.setRGB(x, y, palette[iter]);
-                */
             }
         }
     }

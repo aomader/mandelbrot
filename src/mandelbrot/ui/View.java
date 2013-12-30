@@ -27,6 +27,8 @@ public class View extends JComponent implements Observer, ActionListener {
     public View(final Model aModel) {
         super();
 
+        setPreferredSize(new Dimension((int)(1.25 * 800), 800));
+
         model = aModel;
         model.addObserver(this);
 

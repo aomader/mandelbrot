@@ -12,7 +12,6 @@ public class Window extends JFrame {
         super();
 
         setTitle(Localization.get("main.title"));
-        setSize(1024, 700);
         setVisible(true);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
@@ -22,5 +21,7 @@ public class Window extends JFrame {
         panel.add(new Controls(model), BorderLayout.EAST);
         panel.add(new View(model), BorderLayout.CENTER);
         setContentPane(panel);
+
+        pack();
     }
 }
