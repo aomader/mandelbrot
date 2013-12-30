@@ -35,8 +35,8 @@ public class Model extends Observable implements ActionListener {
             getDefaultScreenDevice().getDefaultConfiguration();
 
     private final Timer timer = new Timer(1000, this);
-    private final int cores = Runtime.getRuntime().availableProcessors();
-    private final Vector<Thread> threads = new Vector<Thread>(cores);
+    private int threadCount = Runtime.getRuntime().availableProcessors();
+    private final Vector<Thread> threads = new Vector<Thread>(threadCount);
     private CountDownLatch firstRun;
 
     private int[] indexes;
@@ -118,6 +118,34 @@ public class Model extends Observable implements ActionListener {
         stopDrawing();
         this.active = active;
         startDrawing();
+    }
+
+    /**
+     * Get the number of threads running in parallel while rendering.
+     *
+     * @return Amount of threads.
+     */
+    public synchronized int getThreadCount() {
+        return threadCount;
+    }
+
+    /**
+     * Set the number of threads running in parallel while rendering, also
+     * triggers a redraw.
+     *
+     * @param threadCount The new amount of threads.
+     */
+    public synchronized void setThreadCount(int threadCount) {
+        if (threadCount < 1) {
+            throw new IllegalArgumentException("threadCount must be larger " +
+                "than zero");
+        }
+
+        if (this.threadCount != threadCount) {
+            stopDrawing();
+            this.threadCount = threadCount;
+            startDrawing();
+        }
     }
 
     /**
@@ -484,7 +512,7 @@ public class Model extends Observable implements ActionListener {
 
     private void startDrawing() {
         if (active) {
-            firstRun = new CountDownLatch(cores);
+            firstRun = new CountDownLatch(threadCount);
             index.set(0);
             processed.set(0);
 
@@ -496,7 +524,7 @@ public class Model extends Observable implements ActionListener {
             }
 
             // spawn new threads to perform the calculations
-            for (int i = 0; i < cores; ++i) {
+            for (int i = 0; i < threadCount; ++i) {
                 Thread thread = new Calculation();
                 thread.start();
                 threads.add(thread);

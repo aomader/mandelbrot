@@ -17,7 +17,8 @@ parts. It's main features are listed below:
   set
 * Live feedback while rendering also showing intermediate results
 * Many adjustable options like _algorithm_, _maximum number of iterations_,
-  _maximum radius_, _histogram equalization_ and _refresh rate_
+  _maximum radius_, _histogram equalization_, _refresh rate_ and the
+  _thread count_
 
 
 [this excellent blog post]: http://yozh.org/mset_index/

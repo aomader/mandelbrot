@@ -8,6 +8,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import javax.swing.text.html.HTMLDocument;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -28,6 +29,9 @@ public class Controls extends Box implements Observer, ActionListener,
 
     private final Model model;
 
+    private final JSpinner threadsSpinner = new JSpinner(
+        new SpinnerNumberModel(Runtime.getRuntime().availableProcessors(), 1,
+            Runtime.getRuntime().availableProcessors() * 2, 1));
     private final JSpinner fpsSpinner = new JSpinner(
         new SpinnerNumberModel(25, 1, 60, 1));
     private final JComboBox<String> algorithmComboBox = new JComboBox<String>(
@@ -63,6 +67,7 @@ public class Controls extends Box implements Observer, ActionListener,
         model.addObserver(this);
 
         // add listeners
+        threadsSpinner.addChangeListener(this);
         fpsSpinner.addChangeListener(this);
         algorithmComboBox.addActionListener(this);
         maxIterSpinner.addChangeListener(this);
@@ -77,6 +82,8 @@ public class Controls extends Box implements Observer, ActionListener,
         fitButton.addActionListener(this);
 
         // settings
+        addSetting("main.threads", threadsSpinner);
+        add(Box.createRigidArea(new Dimension(0, 20)));
         addSetting("main.fps", fpsSpinner);
         add(Box.createRigidArea(new Dimension(0, 20)));
         addSetting("main.algorithm", algorithmComboBox);
@@ -155,11 +162,13 @@ public class Controls extends Box implements Observer, ActionListener,
 
     @Override
     public void stateChanged(ChangeEvent e) {
-        if (e.getSource() == fpsSpinner) {
-            model.setFps((Integer) fpsSpinner.getModel().getValue());
+        if (e.getSource() == threadsSpinner) {
+            model.setThreadCount((Integer)threadsSpinner.getModel().getValue());
+        } else if (e.getSource() == fpsSpinner) {
+            model.setFps((Integer)fpsSpinner.getModel().getValue());
         } else if (e.getSource() == maxIterSpinner) {
             model.setMaxIterations(
-                (Integer) maxIterSpinner.getModel().getValue());
+                (Integer)maxIterSpinner.getModel().getValue());
         } else if (e.getSource() == maxRadiusSpinner) {
             model.setMaxRadius(
                 (Double)maxRadiusSpinner.getModel().getValue());
@@ -180,6 +189,7 @@ public class Controls extends Box implements Observer, ActionListener,
     @Override
     public void update(Observable o, Object arg) {
         if (o == model) {
+            threadsSpinner.getModel().setValue(model.getThreadCount());
             fpsSpinner.getModel().setValue(model.getFps());
             algorithmComboBox.setSelectedIndex(
                 model.getAlgorithm() == Model.ALGORITHM_ESCAPE_TIME ? 0 : 1);
