@@ -8,15 +8,16 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.text.html.ObjectView;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.util.Observable;
 import java.util.Observer;
 
 public class Controls extends Box implements Observer, ActionListener,
-    ChangeListener {
+    ChangeListener, ItemListener {
 
     // ==== Constants ====
 
@@ -29,13 +30,15 @@ public class Controls extends Box implements Observer, ActionListener,
 
     private final JSpinner fpsSpinner = new JSpinner(
         new SpinnerNumberModel(25, 1, 60, 1));
-    private final JComboBox<String> algorithmBox = new JComboBox<String>(
+    private final JComboBox<String> algorithmComboBox = new JComboBox<String>(
         new String[] {Localization.get("main.algorithm.escape_time"),
         Localization.get("main.algorithm.normalized_iteration_count")});
     private final JSpinner maxIterSpinner = new JSpinner(
         new SpinnerNumberModel(1000, 0, 10000, 10));
     private final JSpinner maxRadiusSpinner = new JSpinner(
         new SpinnerNumberModel(2, 0, 100, 0.1));
+    private final JCheckBox histogramCheckBox = new JCheckBox(
+        Localization.get("main.histogram.checkbox"));
     private final JButton leftButton = createControlButton("main.left");
     private final JButton rightButton = createControlButton("main.right");
     private final JButton upButton = createControlButton("main.up");
@@ -61,9 +64,10 @@ public class Controls extends Box implements Observer, ActionListener,
 
         // add listeners
         fpsSpinner.addChangeListener(this);
-        algorithmBox.addActionListener(this);
+        algorithmComboBox.addActionListener(this);
         maxIterSpinner.addChangeListener(this);
         maxRadiusSpinner.addChangeListener(this);
+        histogramCheckBox.addItemListener(this);
         leftButton.addActionListener(this);
         rightButton.addActionListener(this);
         upButton.addActionListener(this);
@@ -74,13 +78,15 @@ public class Controls extends Box implements Observer, ActionListener,
 
         // settings
         addSetting("main.fps", fpsSpinner);
-        add(Box.createRigidArea(new Dimension(0, 30)));
-        addSetting("main.algorithm", algorithmBox);
-        add(Box.createRigidArea(new Dimension(0, 30)));
+        add(Box.createRigidArea(new Dimension(0, 20)));
+        addSetting("main.algorithm", algorithmComboBox);
+        add(Box.createRigidArea(new Dimension(0, 20)));
         addSetting("main.iter", maxIterSpinner);
-        add(Box.createRigidArea(new Dimension(0, 30)));
+        add(Box.createRigidArea(new Dimension(0, 20)));
         addSetting("main.radius", maxRadiusSpinner);
-        add(Box.createRigidArea(new Dimension(0, 30)));
+        add(Box.createRigidArea(new Dimension(0, 20)));
+        addSetting("main.histogram", histogramCheckBox);
+        add(Box.createRigidArea(new Dimension(0, 40)));
 
         // controls
         JPanel moving = new JPanel(new GridLayout(3, 3, 2, 2));
@@ -138,8 +144,8 @@ public class Controls extends Box implements Observer, ActionListener,
             model.translate(0, (int)Math.round(size.height * MOVE_FACTOR));
 
         // algorithm
-        } else if (source == algorithmBox) {
-            model.setAlgorithm(algorithmBox.getSelectedIndex() == 0 ?
+        } else if (source == algorithmComboBox) {
+            model.setAlgorithm(algorithmComboBox.getSelectedIndex() == 0 ?
                 Model.ALGORITHM_ESCAPE_TIME :
                 Model.ALGORITHM_NORMALIZED_ITERATION_COUNT);
         }
@@ -160,16 +166,26 @@ public class Controls extends Box implements Observer, ActionListener,
         }
     }
 
+    // ==== ItemListener Implementation ====
+
+    @Override
+    public void itemStateChanged(ItemEvent e) {
+        if (e.getItemSelectable() == histogramCheckBox) {
+            model.setHistEqualization(histogramCheckBox.isSelected());
+        }
+    }
+
     // ==== Observer Implementation ====
 
     @Override
     public void update(Observable o, Object arg) {
         if (o == model) {
             fpsSpinner.getModel().setValue(model.getFps());
-            algorithmBox.setSelectedIndex(
+            algorithmComboBox.setSelectedIndex(
                 model.getAlgorithm() == Model.ALGORITHM_ESCAPE_TIME ? 0 : 1);
             maxIterSpinner.getModel().setValue(model.getMaxIterations());
             maxRadiusSpinner.getModel().setValue(model.getMaxRadius());
+            histogramCheckBox.setSelected(model.getHistEqualization());
             renderingLabel.setText(model.getProgress() < 1.f ?
                 Localization.get("main.rendering.title") :
                 String.format(Localization.get("main.rendered.title"),
@@ -186,9 +202,9 @@ public class Controls extends Box implements Observer, ActionListener,
         label.setLabelFor(maxRadiusSpinner);
         control.setAlignmentX(JComponent.LEFT_ALIGNMENT);
         add(label);
-        add(Box.createRigidArea(new Dimension(0, 6)));
+        add(Box.createRigidArea(new Dimension(0, 5)));
         add(control);
-        add(Box.createRigidArea(new Dimension(0, 6)));
+        add(Box.createRigidArea(new Dimension(0, 3)));
         add(createHelpLabel(Localization.get(key + ".help")));
     }
 

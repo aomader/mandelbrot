@@ -37,10 +37,13 @@ public class Model extends Observable implements ActionListener {
     private final Timer timer = new Timer(1000, this);
     private final int cores = Runtime.getRuntime().availableProcessors();
     private final Vector<Thread> threads = new Vector<Thread>(cores);
-    private CountDownLatch running;
+    private CountDownLatch firstRun;
 
     private int[] indexes;
+    private double[] iterations;
+    private AtomicInteger[] histogram;
     private final AtomicInteger index = new AtomicInteger();
+    private final AtomicInteger processed = new AtomicInteger();
 
     private boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
@@ -49,6 +52,7 @@ public class Model extends Observable implements ActionListener {
     private int algorithm = ALGORITHM_NORMALIZED_ITERATION_COUNT;
     private int maxIter = 1000;
     private double maxRadius = 2;
+    private boolean histEqualization = true;
     private long renderingTime = 0;
     private long renderingStart = 0;
 
@@ -59,10 +63,13 @@ public class Model extends Observable implements ActionListener {
 
     static {
         colors = new LinkedHashMap<Double, Integer>();
-        colors.put(0., 0xff004183);
-        colors.put(.1, 0xffffffff);
-        colors.put(.5, 0xffff7200);
-        colors.put(.75, 0xff3ef000);
+        colors.put(0., 0xff000000);
+        colors.put(.1, 0xff4b0d57);
+        colors.put(.4, 0xffbb4330);
+        colors.put(.6, 0xfffaa303);
+        colors.put(.8, 0xffffe248);
+        colors.put(.9, 0xffffed93);
+        colors.put(0.95, 0xffffffff);
         colors.put(1., 0xff000000);
     }
 
@@ -73,7 +80,7 @@ public class Model extends Observable implements ActionListener {
         setActive(false);
         setSize(new Dimension(1, 1));
         setFps(25);
-        setMaxIterations(100);
+        setMaxIterations(200);
         setMaxRadius(10);
         setActive(true);
     }
@@ -245,7 +252,14 @@ public class Model extends Observable implements ActionListener {
         if (this.maxIter != maxIter) {
             stopDrawing();
             this.maxIter = maxIter;
+
             palette = Algorithm.createPalette(colors, maxIter);
+
+            histogram = new AtomicInteger[maxIter + 1];
+            for (int i = 0; i <= maxIter; ++i) {
+                histogram[i] = new AtomicInteger();
+            }
+
             startDrawing();
         }
     }
@@ -272,12 +286,36 @@ public class Model extends Observable implements ActionListener {
     }
 
     /**
+     * Determine whether histogram equalization is used or not.
+     *
+     * @return The state of the usage.
+     */
+    public synchronized boolean getHistEqualization() {
+        return histEqualization;
+    }
+
+    /**
+     * Set the usage state of histogram equalization as a post processing
+     * method in order to enhance the color usage.
+     *
+     * @param histEqualization The new usage state.
+     */
+    public synchronized void setHistEqualization(boolean histEqualization) {
+        if (this.histEqualization != histEqualization) {
+            stopDrawing();
+            this.histEqualization = histEqualization;
+            startDrawing();
+        }
+    }
+
+    /**
      * Get the progress of the last rendering attempt in the range [0.f, 1.f].
      *
      * @return The progress of the last rendering attempt.
      */
     public synchronized float getProgress() {
-        return Math.min(1.f, (float)index.get() / indexes.length);
+        return Math.min(1.f, (float)processed.get() / indexes.length /
+            (histEqualization ? 2 : 1));
     }
 
     /**
@@ -419,6 +457,8 @@ public class Model extends Observable implements ActionListener {
             indexes[j] = t;
         }
 
+        iterations = new double[total];
+
         index.set(0);
     }
 
@@ -444,8 +484,16 @@ public class Model extends Observable implements ActionListener {
 
     private void startDrawing() {
         if (active) {
-            running = new CountDownLatch(cores);
+            firstRun = new CountDownLatch(cores);
             index.set(0);
+            processed.set(0);
+
+            // set histogram bins to zero
+            if (histEqualization) {
+                for (int i = 0; i <= maxIter; ++i) {
+                    histogram[i].set(0);
+                }
+            }
 
             // spawn new threads to perform the calculations
             for (int i = 0; i < cores; ++i) {
@@ -469,24 +517,18 @@ public class Model extends Observable implements ActionListener {
             final int total = indexes.length;
 
             // consume pixels until exhausted or thread is interrupted
-            while (!Thread.currentThread().isInterrupted()) {
+            while (!currentThread().isInterrupted()) {
                 // get next pixel candidate
                 final int idx = index.getAndIncrement();
 
-                // when all pixels are consumed, updated rendering time and
-                // stop the thread
+                // wait until first run is completed before continuing
                 if (idx >= total) {
-                    running.countDown();
+                    firstRun.countDown();
 
-                    if (idx == total) {
-                        while (running.getCount() > 0) {
-                            try {
-                                running.await();
-                            } catch (InterruptedException e) {}
-                        }
-
-                        renderingTime = System.currentTimeMillis() -
-                            renderingStart;
+                    while (firstRun.getCount() > 0) {
+                        try {
+                            firstRun.await();
+                        } catch (InterruptedException e) {}
                     }
 
                     break;
@@ -498,24 +540,78 @@ public class Model extends Observable implements ActionListener {
                 final int y = xy / width;
 
                 // map coordinates into Mandelbrot space
-                final double mx = (xy % width) * scale + location.getX();
-                final double my = (xy / width) * scale + location.getY();
+                final double mx = x * scale + location.getX();
+                final double my = y * scale + location.getY();
 
                 // the actual time consuming computation
-                int color;
-                if (algorithm == ALGORITHM_ESCAPE_TIME) {
-                    color = palette[Algorithm.escapeTime(mx, my, maxRadius,
-                        maxIter)];
-                } else {
-                    final double iter = Algorithm.normalizedIterationCount(mx, my,
-                        maxRadius, maxIter);
-                    color = Algorithm.interpolateColor(
-                        palette[(int)Math.floor(iter)],
-                        palette[(int)Math.ceil(iter)], iter % 1);
+                final double iter = (algorithm == ALGORITHM_ESCAPE_TIME) ?
+                    Algorithm.escapeTime(mx, my, maxRadius, maxIter) :
+                    Algorithm.normalizedIterationCount(mx, my, maxRadius,
+                                                       maxIter);
+                final double fraction = iter % 1;
+
+                // set color by either interpolating or using nearest one
+                final int color = (fraction < 5.96e-8) ?
+                    palette[(int)Math.round(iter)] :
+                    Algorithm.interpolateColor(palette[(int)Math.floor(iter)],
+                                               palette[(int)Math.ceil(iter)],
+                                               fraction);
+                image.setRGB(x, y, color);
+
+                // if hist. equalization enabled, store some values for second
+                // run which adjusts the colors a second time
+                if (histEqualization) {
+                    iterations[idx] = iter;
+                    histogram[(int)Math.floor(iter)].incrementAndGet();
+                    histogram[(int)Math.ceil(iter)].incrementAndGet();
                 }
 
-                image.setRGB(x, y, color);
+                processed.incrementAndGet();
             }
+
+            // if hist. equalization enabled, perform second run for coloring
+            if (histEqualization) {
+                while (!currentThread().isInterrupted()) {
+                    final int idx = index.getAndDecrement();
+
+                    if (idx >= total) {
+                        continue;
+                    }
+                    if (idx < 0) {
+                        break;
+                    }
+
+                    final double iter = iterations[idx];
+                    final double fraction = iter % 1;
+
+                    double rel = 0.;
+                    int j = 0;
+                    while (j <= Math.floor(iter)) {
+                        rel += histogram[j++].get();
+                    }
+                    rel /= total*2;
+
+                    int color;
+                    if (fraction < 5.96e-8) {
+                        color = palette[(int)Math.round(rel * maxIter)];
+                    } else {
+                        final double prel = rel - histogram[j-1].get() /
+                            (total * 2.);
+                        final int a = palette[(int)Math.round(prel * maxIter)];
+                        final int b = palette[(int)Math.round(rel * maxIter)];
+                        color = Algorithm.interpolateColor(a, b, fraction);
+                    }
+
+                    final int xy = indexes[idx];
+                    image.setRGB(xy % width, xy / width, color);
+
+                    processed.incrementAndGet();
+                }
+            }
+
+            // update rendering time
+            renderingTime = System.currentTimeMillis() -
+                renderingStart;
         }
     }
 }
