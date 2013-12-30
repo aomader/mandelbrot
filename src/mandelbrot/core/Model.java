@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
 import java.util.Observable;
 import java.util.Vector;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Model extends Observable implements ActionListener {
@@ -36,9 +37,10 @@ public class Model extends Observable implements ActionListener {
     private final Timer timer = new Timer(1000, this);
     private final int cores = Runtime.getRuntime().availableProcessors();
     private final Vector<Thread> threads = new Vector<Thread>(cores);
+    private CountDownLatch running;
 
     private int[] indexes;
-    private AtomicInteger index = new AtomicInteger();
+    private final AtomicInteger index = new AtomicInteger();
 
     private boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
@@ -128,7 +130,7 @@ public class Model extends Observable implements ActionListener {
      * @see #getSize()
      */
     public synchronized void setSize(Dimension size) {
-        if (size.width != image.getWidth() ||
+        if (image == null || size.width != image.getWidth() ||
             size.height != image.getHeight()) {
             stopDrawing();
 
@@ -279,7 +281,7 @@ public class Model extends Observable implements ActionListener {
     }
 
     /**
-     * Get the needed time to render the current image. The value is only
+     * Get the time needed to render the current image. The value is only
      * meaningful if a call to {@code getProgress()} returns 1.f.
      *
      * @return The rendering time in milliseconds.
@@ -295,6 +297,9 @@ public class Model extends Observable implements ActionListener {
      * best.
      *
      * @param rectangle The region to show in image coordinates.
+     * @see #fit()
+     * @see #translate(int, int)
+     * @see #scale(int, int, double)
      */
     public synchronized void show(Rectangle rectangle) {
         stopDrawing();
@@ -336,6 +341,8 @@ public class Model extends Observable implements ActionListener {
     /**
      * Update location and scale such that the whole Mandelbrot space
      * is shown best.
+     *
+     * @see #show(java.awt.Rectangle)
      */
     public synchronized void fit() {
         stopDrawing();
@@ -352,6 +359,7 @@ public class Model extends Observable implements ActionListener {
      * @param x The x-coordinate of the anchor point in image coordinates.
      * @param y The y-coordinate of the anchor point in image coordinates.
      * @param scale Multiplied with the old size to determine the new one.
+     * @see #show(java.awt.Rectangle)
      */
     public synchronized void scale(int x, int y, double scale) {
         final int width = image.getWidth(), height = image.getHeight();
@@ -368,6 +376,7 @@ public class Model extends Observable implements ActionListener {
      * Convenience method to move the view area by a certain delta.
      *
      * @param dx The x-translation in image coordinates.
+     * @see #show(java.awt.Rectangle)
      */
     public synchronized void translate(int dx, int dy) {
         show(new Rectangle(dx, dy, image.getWidth(), image.getHeight()));
@@ -435,6 +444,7 @@ public class Model extends Observable implements ActionListener {
 
     private void startDrawing() {
         if (active) {
+            running = new CountDownLatch(cores);
             index.set(0);
 
             // spawn new threads to perform the calculations
@@ -463,15 +473,22 @@ public class Model extends Observable implements ActionListener {
                 // get next pixel candidate
                 final int idx = index.getAndIncrement();
 
-                // last thread without a task updates the rendering time,
-                // that's not quite correct, since some threads might still
-                // do something, but that is negligible
-                if (idx == total) {
-                    renderingTime = System.currentTimeMillis() - renderingStart;
-                }
-
-                // stop when all pixels are consumed
+                // when all pixels are consumed, updated rendering time and
+                // stop the thread
                 if (idx >= total) {
+                    running.countDown();
+
+                    if (idx == total) {
+                        while (running.getCount() > 0) {
+                            try {
+                                running.await();
+                            } catch (InterruptedException e) {}
+                        }
+
+                        renderingTime = System.currentTimeMillis() -
+                            renderingStart;
+                    }
+
                     break;
                 }
 

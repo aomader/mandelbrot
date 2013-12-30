@@ -96,7 +96,7 @@ public class Controls extends Box implements Observer, ActionListener,
         moving.add(createGlue());
         addSetting("main.viewport", moving);
 
-        // Vertical spacing in a really weird way ..
+        // vertical spacing in a really weird way ..
         add(new JPanel(new GridBagLayout()));
 
         // rendering time
