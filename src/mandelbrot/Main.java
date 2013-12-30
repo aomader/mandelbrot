@@ -10,7 +10,9 @@ public class Main {
         // try to use system specific look and feel
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {}
+        } catch (Exception e) {
+            System.err.println("Unable to set system specific look and feel");
+        }
 
         // create the window within the UI-thread
         SwingUtilities.invokeLater(new Runnable() {

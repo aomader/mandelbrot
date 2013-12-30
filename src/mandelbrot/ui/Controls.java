@@ -48,10 +48,10 @@ public class Controls extends Box implements Observer, ActionListener,
     public Controls(Model aModel) {
         super(BoxLayout.Y_AXIS);
 
-        setMaximumSize(new Dimension(300, Integer.MAX_VALUE));
+        setPreferredSize(new Dimension(220, 600));
         setBorder(BorderFactory.createCompoundBorder(
             new MatteBorder(0, 1, 0, 0, new Color(150, 150, 150)),
-            new EmptyBorder(15, 15, 15, 15)));
+            new EmptyBorder(20, 20, 20, 20)));
 
         model = aModel;
         model.addObserver(this);

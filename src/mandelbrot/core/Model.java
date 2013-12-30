@@ -6,7 +6,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.WritableRaster;
+import java.util.LinkedHashMap;
 import java.util.Observable;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,15 +35,30 @@ public class Model extends Observable implements ActionListener {
     private long renderingTime = 0;
     private long renderingStart = 0;
 
+    private int[] palette;
     private BufferedImage image;
-    private WritableRaster raster;
+
+    private static LinkedHashMap<Double, Integer> colors;
+
+    static {
+        colors = new LinkedHashMap<Double, Integer>();
+        colors.put(0., 0xff004183);
+        colors.put(.1, 0xffffffff);
+        colors.put(.5, 0xffff7200);
+        colors.put(.75, 0xff3ef000);
+        colors.put(1., 0xff000000);
+    }
 
     // ==== Constructor ====
 
     public Model() {
         super();
+        setActive(false);
         setSize(new Dimension(1, 1));
         setFps(25);
+        setMaxIterations(100);
+        setMaxRadius(10);
+        setActive(true);
     }
 
     // ==== Accessors ====
@@ -101,7 +116,6 @@ public class Model extends Observable implements ActionListener {
         }
 
         image = newImage;
-        raster = image.getRaster();
 
         updateIndexes();
 
@@ -143,6 +157,7 @@ public class Model extends Observable implements ActionListener {
     public synchronized void setMaxIterations(int maxIter) {
         stopDrawing();
         this.maxIter = maxIter;
+        palette = Algorithm.createPalette(colors, maxIter);
         startDrawing();
     }
 
@@ -378,21 +393,18 @@ public class Model extends Observable implements ActionListener {
                 final double my = (xy / width) * scale + location.getY();
 
                 // the actual time consuming computation
+                final double iter = Algorithm.normalizedIterationCount(mx, my,
+                    maxRadius, maxIter);
+
+                int color = (iter == maxIter) ? palette[maxIter] :
+                    Algorithm.interpolateColor(palette[(int)Math.floor(iter)],
+                        palette[(int)Math.ceil(iter)], iter % 1);
+
+                image.setRGB(x, y, color);
+                /*
                 final int iter = Algorithm.escapeTime(mx, my, maxRadius,
                     maxIter);
-
-                /* TODO: The arrangement, e.g. RGB, BGR, etc. is defined by
-                         the image, we have to look that up. */
-
-                // set the new color of the pixel
-                Graphics g = image.getGraphics();
-                g.setColor(Algorithm.colorFromIterations(iter, maxIter));
-                g.fillRect(x, y, 1, 1);
-                /*
-                pixel[0] = (int)((float)iter/255 * 255);
-                pixel[1] = pixel[0];
-                pixel[2] = pixel[0];
-                raster.setPixel(x, y, pixel);
+                image.setRGB(x, y, palette[iter]);
                 */
             }
         }
