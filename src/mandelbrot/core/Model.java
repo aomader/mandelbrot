@@ -12,6 +12,14 @@ import java.util.Vector;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Parallel rendering of the Mandelbrot set.
+ *
+ * Encapsulates the complex task of performing parallel rendering jobs
+ * of the Mandelbrot set. It provides thread-safe methods to adjust the
+ * key parameters of these rendering jobs to influence the run-time behavior
+ * and the rendered results.
+ */
 public class Model extends Observable implements ActionListener {
 
     // ==== Constants ====
@@ -75,6 +83,9 @@ public class Model extends Observable implements ActionListener {
 
     // ==== Constructor ====
 
+    /**
+     * Create a new {@code Model} instance and specify sane defaults.
+     */
     public Model() {
         super();
         setActive(false);

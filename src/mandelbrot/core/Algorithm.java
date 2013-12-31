@@ -3,6 +3,10 @@ package mandelbrot.core;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * A helper class which bundles static methods that involve mathematical
+ * computations and somehow more general algorithms.
+ */
 public class Algorithm {
 
     /**

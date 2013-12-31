@@ -8,7 +8,6 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.border.MatteBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.text.html.HTMLDocument;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -17,6 +16,10 @@ import java.awt.event.ItemListener;
 import java.util.Observable;
 import java.util.Observer;
 
+/**
+ * Contains various UI controls to adjust the key parameters of the
+ * {@code Model}.
+ */
 public class Controls extends Box implements Observer, ActionListener,
     ChangeListener, ItemListener {
 
@@ -55,6 +58,12 @@ public class Controls extends Box implements Observer, ActionListener,
 
     // ==== Constructor ====
 
+    /**
+     * Create a new {@code Controls} instance.
+     *
+     * @param aModel The {@code Model} providing methods to read and adjust
+     *               the key parameters of the rendering process.
+     */
     public Controls(Model aModel) {
         super(BoxLayout.Y_AXIS);
 

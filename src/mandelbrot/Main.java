@@ -4,6 +4,11 @@ import mandelbrot.ui.Window;
 
 import javax.swing.*;
 
+/**
+ * Provides the main entry point of the application.
+ *
+ * Creates a new {@code Window} within the UI thread and shows it.
+ */
 public class Main {
 
     public static void main(String[] args) {
@@ -18,7 +23,7 @@ public class Main {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new Window();
+                new Window().setVisible(true);
             }
         });
     }

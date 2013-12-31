@@ -9,6 +9,12 @@ import java.awt.image.BufferedImage;
 import java.util.Observable;
 import java.util.Observer;
 
+/**
+ * Viewport for the Mandelbrot space.
+ *
+ * The {@code View} shows the rendered images and allows for interactive
+ * navigation through mouse gestures.
+ */
 public class View extends JComponent implements Observer, ActionListener {
 
     // ==== Constants ====
@@ -24,6 +30,12 @@ public class View extends JComponent implements Observer, ActionListener {
 
     // ==== Constructor ====
 
+    /**
+     * Create a new {@code View} instance.
+     *
+     * @param aModel The {@code Model} providing the image and methods to adjust
+     *               the viewing area.
+     */
     public View(final Model aModel) {
         super();
 
