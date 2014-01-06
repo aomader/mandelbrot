@@ -67,7 +67,7 @@ public class Controls extends Box implements Observer, ActionListener,
     public Controls(Model aModel) {
         super(BoxLayout.Y_AXIS);
 
-        setPreferredSize(new Dimension(250, 800));
+        setPreferredSize(new Dimension(280, 800));
         setBorder(BorderFactory.createCompoundBorder(
             new MatteBorder(0, 1, 0, 0, new Color(150, 150, 150)),
             new EmptyBorder(20, 20, 20, 20)));
@@ -92,17 +92,17 @@ public class Controls extends Box implements Observer, ActionListener,
 
         // settings
         addSetting("main.threads", threadsSpinner);
-        add(Box.createRigidArea(new Dimension(0, 20)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
         addSetting("main.fps", fpsSpinner);
-        add(Box.createRigidArea(new Dimension(0, 20)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
         addSetting("main.algorithm", algorithmComboBox);
-        add(Box.createRigidArea(new Dimension(0, 20)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
         addSetting("main.iter", maxIterSpinner);
-        add(Box.createRigidArea(new Dimension(0, 20)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
         addSetting("main.radius", maxRadiusSpinner);
-        add(Box.createRigidArea(new Dimension(0, 20)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
         addSetting("main.histogram", histogramCheckBox);
-        add(Box.createRigidArea(new Dimension(0, 40)));
+        add(Box.createRigidArea(new Dimension(0, 15)));
 
         // controls
         JPanel moving = new JPanel(new GridLayout(3, 3, 2, 2));
@@ -219,17 +219,21 @@ public class Controls extends Box implements Observer, ActionListener,
         JLabel label = new JLabel(Localization.get(key + ".title"));
         label.setFont(label.getFont().deriveFont(Font.BOLD));
         label.setLabelFor(maxRadiusSpinner);
+
         control.setAlignmentX(JComponent.LEFT_ALIGNMENT);
+
+        JTextArea help = createHelpLabel(Localization.get(key + ".help"));
+        help.setFont(label.getFont().deriveFont(Font.ITALIC).deriveFont(10.f));
+
         add(label);
-        add(Box.createRigidArea(new Dimension(0, 5)));
-        add(control);
         add(Box.createRigidArea(new Dimension(0, 3)));
-        add(createHelpLabel(Localization.get(key + ".help")));
+        add(control);
+        add(Box.createRigidArea(new Dimension(0, 2)));
+        add(help);
     }
 
     private static JTextArea createHelpLabel(String text) {
         JTextArea textArea = new JTextArea();
-        textArea.setFont(textArea.getFont().deriveFont(Font.ITALIC));
         textArea.setAlignmentX(JComponent.LEFT_ALIGNMENT);
         textArea.setEditable(false);
         textArea.setCursor(null);

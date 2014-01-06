@@ -71,6 +71,9 @@ public class Model extends Observable implements ActionListener {
 
     static {
         colors = new LinkedHashMap<Double, Integer>();
+
+        /* my colors extracted from the video
+        http://www.youtube.com/watch?v=ohzJV980PIQ
         colors.put(0., 0xff000000);
         colors.put(.1, 0xff4b0d57);
         colors.put(.4, 0xffbb4330);
@@ -79,6 +82,49 @@ public class Model extends Observable implements ActionListener {
         colors.put(.9, 0xffffed93);
         colors.put(0.95, 0xffffffff);
         colors.put(1., 0xff000000);
+        */
+
+        // first version: 0x000000,0x260e33,0x4b1b66,0x732876,0x9c355e,0xc64147,
+        // 0xdb5430,0xee681a,0xfb7c10,0xfd9418,0xffab20,0xffb834,0xffc84f
+        // 0xffd76b,0xffe89a,0xfff6d8
+        colors.put(0/15., 0xff000000);
+        colors.put(1/15., 0xff260e33);
+        colors.put(2/15., 0xff4b1b66);
+        colors.put(3/15., 0xff732876);
+        colors.put(4/15., 0xff9c355e);
+        colors.put(5/15., 0xffc64147);
+        colors.put(6/15., 0xffdb5430);
+        colors.put(7/15., 0xffee681a);
+        colors.put(8/15., 0xfffb7c10);
+        colors.put(9/15., 0xfffd9418);
+        colors.put(10/15., 0xffffab20);
+        colors.put(11/15., 0xffffb834);
+        colors.put(12/15., 0xffffc84f);
+        colors.put(13/15., 0xffffd76b);
+        colors.put(14/15., 0xffffe89a);
+        colors.put(15/15., 0xfffff6d8);
+
+        // second version: 0x000000,0x000500,0x001300,0x081a00,0x103500,
+        // 0x2a4700,0x583900,0x7d001e,0x98003a,0xbb005f,0xd6007a,0xeb00b0
+        // 0xfc00c7,0xff00d5,0xff00e2,0xffffff
+        /*
+        colors.put(0/15., 0xff000000);
+        colors.put(1/15., 0xff000500);
+        colors.put(2/15., 0xff001300);
+        colors.put(3/15., 0xff081a00);
+        colors.put(4/15., 0xff103500);
+        colors.put(5/15., 0xff2a4700);
+        colors.put(6/15., 0xff583900);
+        colors.put(7/15., 0xff7d001e);
+        colors.put(8/15., 0xff98003a);
+        colors.put(9/15., 0xffbb005f);
+        colors.put(10/15., 0xffd6007a);
+        colors.put(11/15., 0xffeb00b0);
+        colors.put(12/15., 0xfffc00c7);
+        colors.put(13/15., 0xffff00d5);
+        colors.put(14/15., 0xffff00e2);
+        colors.put(15/15., 0xffffffff);
+        */
     }
 
     // ==== Constructor ====
@@ -590,11 +636,17 @@ public class Model extends Observable implements ActionListener {
                 final double fraction = iter % 1;
 
                 // set color by either interpolating or using nearest one
-                final int color = (fraction < 5.96e-8) ?
+                int color = (fraction < 5.96e-8) ?
                     palette[(int)Math.round(iter)] :
                     Algorithm.interpolateColor(palette[(int)Math.floor(iter)],
                                                palette[(int)Math.ceil(iter)],
                                                fraction);
+
+                // TODO: Just a quick fix!
+                if (iter >= maxIter) {
+                    color = 0xff000000;
+                }
+
                 image.setRGB(x, y, color);
 
                 // if hist. equalization enabled, store some values for second
@@ -639,6 +691,11 @@ public class Model extends Observable implements ActionListener {
                         final int a = palette[(int)Math.round(prel * maxIter)];
                         final int b = palette[(int)Math.round(rel * maxIter)];
                         color = Algorithm.interpolateColor(a, b, fraction);
+                    }
+
+                    // TODO: Just a quick fix!
+                    if (iter >= maxIter) {
+                        color = 0xff000000;
                     }
 
                     final int xy = indexes[idx];
