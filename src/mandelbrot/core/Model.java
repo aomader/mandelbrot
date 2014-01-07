@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Observable;
 import java.util.Vector;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -50,8 +51,10 @@ public class Model extends Observable implements ActionListener {
     private int[] indexes;
     private double[] iterations;
     private AtomicInteger[] histogram;
-    private final AtomicInteger index = new AtomicInteger();
+    private final AtomicInteger firstIndex = new AtomicInteger();
+    private final AtomicInteger secondIndex = new AtomicInteger();
     private final AtomicInteger processed = new AtomicInteger();
+    private final Object renderingTimeLock = new Object();
 
     private boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
@@ -72,21 +75,8 @@ public class Model extends Observable implements ActionListener {
     static {
         colors = new LinkedHashMap<Double, Integer>();
 
-        /* my colors extracted from the video
-        http://www.youtube.com/watch?v=ohzJV980PIQ
-        colors.put(0., 0xff000000);
-        colors.put(.1, 0xff4b0d57);
-        colors.put(.4, 0xffbb4330);
-        colors.put(.6, 0xfffaa303);
-        colors.put(.8, 0xffffe248);
-        colors.put(.9, 0xffffed93);
-        colors.put(0.95, 0xffffffff);
-        colors.put(1., 0xff000000);
-        */
-
-        // first version: 0x000000,0x260e33,0x4b1b66,0x732876,0x9c355e,0xc64147,
-        // 0xdb5430,0xee681a,0xfb7c10,0xfd9418,0xffab20,0xffb834,0xffc84f
-        // 0xffd76b,0xffe89a,0xfff6d8
+        // colors kindly provided by tthsqe12:
+        // http://www.youtube.com/watch?v=ohzJV980PIQ
         colors.put(0/15., 0xff000000);
         colors.put(1/15., 0xff260e33);
         colors.put(2/15., 0xff4b1b66);
@@ -103,28 +93,6 @@ public class Model extends Observable implements ActionListener {
         colors.put(13/15., 0xffffd76b);
         colors.put(14/15., 0xffffe89a);
         colors.put(15/15., 0xfffff6d8);
-
-        // second version: 0x000000,0x000500,0x001300,0x081a00,0x103500,
-        // 0x2a4700,0x583900,0x7d001e,0x98003a,0xbb005f,0xd6007a,0xeb00b0
-        // 0xfc00c7,0xff00d5,0xff00e2,0xffffff
-        /*
-        colors.put(0/15., 0xff000000);
-        colors.put(1/15., 0xff000500);
-        colors.put(2/15., 0xff001300);
-        colors.put(3/15., 0xff081a00);
-        colors.put(4/15., 0xff103500);
-        colors.put(5/15., 0xff2a4700);
-        colors.put(6/15., 0xff583900);
-        colors.put(7/15., 0xff7d001e);
-        colors.put(8/15., 0xff98003a);
-        colors.put(9/15., 0xffbb005f);
-        colors.put(10/15., 0xffd6007a);
-        colors.put(11/15., 0xffeb00b0);
-        colors.put(12/15., 0xfffc00c7);
-        colors.put(13/15., 0xffff00d5);
-        colors.put(14/15., 0xffff00e2);
-        colors.put(15/15., 0xffffffff);
-        */
     }
 
     // ==== Constructor ====
@@ -544,7 +512,7 @@ public class Model extends Observable implements ActionListener {
 
         iterations = new double[total];
 
-        index.set(0);
+        firstIndex.set(0);
     }
 
     private void stopDrawing() {
@@ -570,7 +538,8 @@ public class Model extends Observable implements ActionListener {
     private void startDrawing() {
         if (active) {
             firstRun = new CountDownLatch(threadCount);
-            index.set(0);
+            firstIndex.set(0);
+            secondIndex.set(0);
             processed.set(0);
 
             // set histogram bins to zero
@@ -580,45 +549,52 @@ public class Model extends Observable implements ActionListener {
                 }
             }
 
+            timer.start();
+            renderingStart = System.currentTimeMillis();
+
             // spawn new threads to perform the calculations
             for (int i = 0; i < threadCount; ++i) {
                 Thread thread = new Calculation();
                 thread.start();
                 threads.add(thread);
             }
-
-            timer.start();
-
-            renderingStart = System.currentTimeMillis();
         }
     }
 
     // ==== Calculation Task ====
 
     private class Calculation extends Thread {
+        final int width = image.getWidth();
+        final int total = indexes.length;
+
         @Override
         public void run() {
-            final int width = image.getWidth();
-            final int total = indexes.length;
+            // compute iterations and eventually store them and histogram info
+            firstRun();
 
+            // wait until all threads finished the first run
+            firstRun.countDown();
+            while (firstRun.getCount() > 0 && active()) {
+                try {
+                    firstRun.await(10, TimeUnit.MILLISECONDS);
+                } catch (InterruptedException e) {}
+            }
+
+            // if hist. equalization enabled, perform second run for coloring
+            if (histEqualization && active()) {
+                secondRun();
+            }
+
+            // update rendering time
+            synchronized (renderingTimeLock) {
+                renderingTime = System.currentTimeMillis() - renderingStart;
+            }
+        }
+
+        private void firstRun() {
             // consume pixels until exhausted or thread is interrupted
-            while (!currentThread().isInterrupted()) {
-                // get next pixel candidate
-                final int idx = index.getAndIncrement();
-
-                // wait until first run is completed before continuing
-                if (idx >= total) {
-                    firstRun.countDown();
-
-                    while (firstRun.getCount() > 0) {
-                        try {
-                            firstRun.await();
-                        } catch (InterruptedException e) {}
-                    }
-
-                    break;
-                }
-
+            int idx;
+            while ((idx = firstIndex.getAndIncrement()) < total && active()) {
                 // 1D to 2D coordinates
                 final int xy = indexes[idx];
                 final int x = xy % width;
@@ -632,82 +608,125 @@ public class Model extends Observable implements ActionListener {
                 final double iter = (algorithm == ALGORITHM_ESCAPE_TIME) ?
                     Algorithm.escapeTime(mx, my, maxRadius, maxIter) :
                     Algorithm.normalizedIterationCount(mx, my, maxRadius,
-                                                       maxIter);
+                        maxIter);
                 final double fraction = iter % 1;
 
                 // set color by either interpolating or using nearest one
                 int color = (fraction < 5.96e-8) ?
                     palette[(int)Math.round(iter)] :
                     Algorithm.interpolateColor(palette[(int)Math.floor(iter)],
-                                               palette[(int)Math.ceil(iter)],
-                                               fraction);
+                        palette[(int)Math.ceil(iter)],
+                        fraction);
 
-                // TODO: Just a quick fix!
-                if (iter >= maxIter) {
-                    color = 0xff000000;
-                }
-
-                image.setRGB(x, y, color);
+                image.setRGB(x, y, iter >= maxIter ? 0xff000000 : color);
 
                 // if hist. equalization enabled, store some values for second
                 // run which adjusts the colors a second time
                 if (histEqualization) {
                     iterations[idx] = iter;
                     histogram[(int)Math.floor(iter)].incrementAndGet();
-                    histogram[(int)Math.ceil(iter)].incrementAndGet();
                 }
 
                 processed.incrementAndGet();
             }
+        }
 
-            // if hist. equalization enabled, perform second run for coloring
-            if (histEqualization) {
-                while (!currentThread().isInterrupted()) {
-                    final int idx = index.getAndDecrement();
-
-                    if (idx >= total) {
-                        continue;
-                    }
-                    if (idx < 0) {
-                        break;
-                    }
-
-                    final double iter = iterations[idx];
-                    final double fraction = iter % 1;
-
-                    double rel = 0.;
-                    int j = 0;
-                    while (j <= Math.floor(iter)) {
-                        rel += histogram[j++].get();
-                    }
-                    rel /= total*2;
-
-                    int color;
-                    if (fraction < 5.96e-8) {
-                        color = palette[(int)Math.round(rel * maxIter)];
-                    } else {
-                        final double prel = rel - histogram[j-1].get() /
-                            (total * 2.);
-                        final int a = palette[(int)Math.round(prel * maxIter)];
-                        final int b = palette[(int)Math.round(rel * maxIter)];
-                        color = Algorithm.interpolateColor(a, b, fraction);
-                    }
-
-                    // TODO: Just a quick fix!
-                    if (iter >= maxIter) {
-                        color = 0xff000000;
-                    }
-
-                    final int xy = indexes[idx];
-                    image.setRGB(xy % width, xy / width, color);
-
-                    processed.incrementAndGet();
-                }
+        private void secondRun() {
+            // compute the cumulative distribution function
+            double cdf[] = new double[maxIter + 1];
+            double t = 0;
+            int min = maxIter, max = 0;
+            for (int j = 0; j <= maxIter && active(); ++j) {
+                t += Math.pow((double)histogram[j].get()/total, 1/4.);
+                cdf[j] = t;
             }
 
-            // update rendering time
-            renderingTime = System.currentTimeMillis() -
-                renderingStart;
+            for (int i = 0; i < total; ++i) {
+                int x = (int)Math.floor(iterations[i]);
+                if (x < min) min = x;
+                if (x > max) max = x;
+            }
+
+            int idx;
+            while ((idx = secondIndex.getAndIncrement()) < total && active()) {
+                final double iter = iterations[idx];
+                final int d = (int)Math.floor(iter);
+
+                // the relative gradient key point
+                double r = cdf[d] - (cdf[d] - (d > 0 ? cdf[d-1] : 0)) * (1 - iter % 1);
+                r = (r - cdf[min]) / (cdf[max] - cdf[min]);
+                r = Math.min(Math.max(r, 0), 1);
+
+                // compute the interpolated color
+                double colorIter = r * maxIter;
+                int color = Algorithm.interpolateColor(
+                    palette[(int)Math.floor(colorIter)],
+                    palette[(int)Math.ceil(colorIter)],
+                    colorIter % 1);
+
+                // write color
+                final int xy = indexes[idx];
+                image.setRGB(xy % width, xy / width,
+                    iter >= maxIter ? 0xff000000 : color);
+
+                processed.incrementAndGet();
+            }
+        }
+
+        private boolean active() {
+            return !currentThread().isInterrupted();
         }
     }
+
 }
+                /*
+                double x3 = 0;
+                double x7 = 4000;
+                double min = Double.MAX_VALUE;
+                double max = Double.MIN_VALUE;
+                for (int i = 0; i < total && !currentThread().isInterrupted(); ++i) {
+                    if (iterations[i] < min)
+                        min = iterations[i];
+                    if (iterations[i] > max)
+                        max = iterations[i];
+                }
+                double cdf[] = new double[(int)Math.max(Math.floor(max) + 1, Math.floor(min) + 8001)];
+
+                for (int i = (int)Math.floor(min); i < (int)Math.floor(Math.min(min + 8000, max)) && !currentThread().isInterrupted(); ++i) {
+                    int x2 = histogram[i].get();
+                    cdf[i] = x3;
+                    x3 += Math.sqrt(Math.min(x2, x7));
+                }
+
+                double x2 = 0;
+                int p = 1, a = 0, c = 196;
+                for (int i = (int)Math.floor(min + 8001); i <= (int)Math.floor(max) && !currentThread().isInterrupted(); ++i) {
+                    int x0 = histogram[i].get();
+                    cdf[i] = x3;
+                    x2 += x0;
+                    if (a != 0) {
+                        a -= 1;
+                    } else {
+                        c -= 1;
+                        if (c == 0) {
+                            c = 196;
+                            p += 1;
+                        }
+                        a = p - 1;
+                        x3 += Math.sqrt(Math.min(x7, x2));
+                        x2 = 0;
+                    }
+                }*/
+
+                    /*
+
+                    int d = (int)Math.floor(iter);
+                    double f = (cdf[d] - cdf[(int)Math.floor(min)]) / (double)(cdf[(int)Math.floor(max)] - cdf[(int)Math.floor(min)]);
+
+
+                    f = Math.min(Math.max(f, 0), 1);
+                    f = Math.min(Math.max(rel, 0), 1);
+
+
+                    color = palette[(int)Math.round(f * maxIter)];
+*/
