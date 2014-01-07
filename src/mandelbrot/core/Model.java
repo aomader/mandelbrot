@@ -54,7 +54,6 @@ public class Model extends Observable implements ActionListener {
     private final AtomicInteger firstIndex = new AtomicInteger();
     private final AtomicInteger secondIndex = new AtomicInteger();
     private final AtomicInteger processed = new AtomicInteger();
-    private final Object renderingTimeLock = new Object();
 
     private boolean active = true;
     private Point2D location = new Point2D.Double(-2.5, -1);
@@ -64,7 +63,7 @@ public class Model extends Observable implements ActionListener {
     private int maxIter = 1000;
     private double maxRadius = 2;
     private boolean histEqualization = true;
-    private long renderingTime = 0;
+    private volatile long renderingTime = 0;
     private long renderingStart = 0;
 
     private int[] palette;
@@ -586,9 +585,7 @@ public class Model extends Observable implements ActionListener {
             }
 
             // update rendering time
-            synchronized (renderingTimeLock) {
-                renderingTime = System.currentTimeMillis() - renderingStart;
-            }
+            renderingTime = System.currentTimeMillis() - renderingStart;
         }
 
         private void firstRun() {
