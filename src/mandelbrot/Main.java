@@ -23,7 +23,9 @@ public class Main {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-                new Window().setVisible(true);
+                final Window window = new Window();
+                window.setVisible(true);
+                window.setExtendedState(window.getExtendedState() | JFrame.MAXIMIZED_BOTH);
             }
         });
     }
