@@ -26,11 +26,17 @@ public class Window extends JFrame {
 
         final Model model = new Model();
 
+        final Controls controls = new Controls(model);
+        final View view = new View(model);
+
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(new Controls(model), BorderLayout.EAST);
-        panel.add(new View(model), BorderLayout.CENTER);
+        panel.add(controls, BorderLayout.EAST);
+        panel.add(view, BorderLayout.CENTER);
         setContentPane(panel);
 
         pack();
+
+        // ensure that the view updates the model size
+        view.setVisible(true);
     }
 }

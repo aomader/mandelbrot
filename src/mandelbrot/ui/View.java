@@ -40,6 +40,7 @@ public class View extends JComponent implements Observer, ActionListener {
         super();
 
         setPreferredSize(new Dimension((int)(1.25 * 800), 800));
+        setVisible(false);
 
         model = aModel;
         model.addObserver(this);
@@ -55,8 +56,15 @@ public class View extends JComponent implements Observer, ActionListener {
 
             @Override
             public void componentShown(ComponentEvent e) {
-                model.setSize(getSize());
-                model.fit();
+                final Timer timer = new Timer(100, new ActionListener() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        model.setSize(getSize());
+                        model.fit();
+                    }
+                });
+                timer.setRepeats(false);
+                timer.start();
             }
         });
 
