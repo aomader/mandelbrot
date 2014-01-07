@@ -41,9 +41,9 @@ public class Controls extends Box implements Observer, ActionListener,
         new String[] {Localization.get("main.algorithm.escape_time"),
         Localization.get("main.algorithm.normalized_iteration_count")});
     private final JSpinner maxIterSpinner = new JSpinner(
-        new SpinnerNumberModel(1000, 0, 10000, 10));
+        new SpinnerNumberModel(1000, 0, 10000000, 10));
     private final JSpinner maxRadiusSpinner = new JSpinner(
-        new SpinnerNumberModel(2, 0, 100, 0.1));
+        new SpinnerNumberModel(2, 0, 100000, 0.1));
     private final JCheckBox histogramCheckBox = new JCheckBox(
         Localization.get("main.histogram.checkbox"));
     private final JButton leftButton = createControlButton("main.left");
